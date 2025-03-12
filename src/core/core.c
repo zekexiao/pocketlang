@@ -1279,11 +1279,8 @@ DEF(_listResize,
   int64_t len;
   if (!validateInteger(vm, ARG(1), &len, "Argument 1")) return;
 
-  if (len < 0) { // negative value to reduce the size.
-    len = self->elements.count + len;
-  }
   if (len < 0) {
-    RET_ERR(newString(vm, "List.resize index out of bounds."));
+    RET_ERR(newString(vm, "List.resize negative size can not be set."));
   }
 
   if (len == 0) {
@@ -1292,7 +1289,7 @@ DEF(_listResize,
   } else if (len > self->elements.count) {
     pkVarBufferFill(&self->elements, vm, VAR_NULL,
       len-self->elements.count);
-    
+
   } else if (len < self->elements.count) {
     self->elements.count = len;
     listShrink(vm, self);
