@@ -75,7 +75,7 @@ static inline bool validateNumeric(PKVM* vm, Var var, double* value,
   return false;
 }
 
-// Check if [var] is 32 bit integer. If not, it'll set error and return false.
+// Check if [var] is 32-bit integer. If not, it'll set error and return false.
 static inline bool validateInteger(PKVM* vm, Var var, int64_t* value,
                                    const char* name) {
   if (isInteger(var, value)) return true;
@@ -83,7 +83,7 @@ static inline bool validateInteger(PKVM* vm, Var var, int64_t* value,
   return false;
 }
 
-// Index is could be larger than 32 bit integer, but the size in pocketlang
+// Index could be larger than 32-bit integer, but the size in pocketlang
 // limited to 32 unsigned bit integer
 static inline bool validateIndex(PKVM* vm, int64_t index, uint32_t size,
                                  const char* container) {
@@ -421,6 +421,8 @@ DEF(coreDir,
       vmPopTempRef(vm); // list.
       RET(VAR_OBJ(list));
     } break;
+    default:
+      UNREACHABLE();
   }
 
   UNREACHABLE();
@@ -840,7 +842,7 @@ DEF(stdLangBackTrace,
   }
 
   // bb.count not including the null byte and which is the length.
-  String* bt = newStringLength(vm, bb.data, bb.count);
+  String* bt = newStringLength(vm, (const char *)bb.data, bb.count);
   vmPushTempRef(vm, &bt->_super); // bt.
   pkByteBufferClear(&bb, vm);
   vmPopTempRef(vm); // bt.
@@ -1115,7 +1117,7 @@ DEF(_stringUpper,
   RET(VAR_OBJ(stringUpper(vm, (String*) AS_OBJ(SELF))));
 }
 
-DEF(_stingStartswith,
+DEF(_stringStartswith,
   "String.startswith(prefix: String | List) -> Bool",
   "Returns true if the string starts the specified prefix.") {
 
@@ -1146,7 +1148,7 @@ DEF(_stingStartswith,
   }
 }
 
-DEF(_stingEndswith,
+DEF(_stringEndswith,
   "String.endswith(suffix: String | List) -> Bool",
   "Returns true if the string ends with the specified suffix.") {
 
@@ -1290,7 +1292,7 @@ DEF(_listResize,
   } else if (len > self->elements.count) {
     pkVarBufferFill(&self->elements, vm, VAR_NULL,
       len-self->elements.count);
-
+    
   } else if (len < self->elements.count) {
     self->elements.count = len;
     listShrink(vm, self);
@@ -1522,8 +1524,8 @@ static void initializePrimitiveClasses(PKVM* vm) {
   ADD_METHOD(PK_STRING, "find",    _stringFind,    -1);
   ADD_METHOD(PK_STRING, "replace", _stringReplace, -1);
   ADD_METHOD(PK_STRING, "split",   _stringSplit,    1);
-  ADD_METHOD(PK_STRING, "startswith", _stingStartswith, 1);
-  ADD_METHOD(PK_STRING, "endswith", _stingEndswith, 1);
+  ADD_METHOD(PK_STRING, "startswith", _stringStartswith, 1);
+  ADD_METHOD(PK_STRING, "endswith", _stringEndswith, 1);
 
   ADD_METHOD(PK_LIST,   "clear",  _listClear,      0);
   ADD_METHOD(PK_LIST,   "find",   _listFind,       1);
@@ -1591,6 +1593,9 @@ Var preConstructSelf(PKVM* vm, Class* cls) {
 
     case PK_INSTANCE:
       return VAR_OBJ(newInstance(vm, cls));
+
+    default:
+      UNREACHABLE();
   }
 
   UNREACHABLE();
