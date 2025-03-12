@@ -187,3 +187,18 @@ assert(Foo._docs == "Testing for\n  class docstring")
 
 # If we got here, that means all test were passed.
 print('All TESTS PASSED')
+
+
+def defaultArg
+  return "hello"
+end
+
+def defaultValueWithFunc(a = 10, b = a * 2, c = defaultArg())
+  print(c, a, b)
+end
+
+defaultValueWithFunc()
+defaultValueWithFunc(0)
+defaultValueWithFunc(5)
+defaultValueWithFunc(5, 100)
+defaultValueWithFunc(5, null, "hi")
