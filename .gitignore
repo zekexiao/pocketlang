@@ -5,6 +5,7 @@
 .vscode/
 .DS_Store
 build/
+cmake-build-*/
 
 scripts/report.html
 docs/build/
