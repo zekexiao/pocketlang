@@ -11,13 +11,6 @@
 import os, re, sys
 from os.path import *
 
-## Print error message in red and exit
-RED = '\033[91m'
-RESET = '\033[0m'
-print(f"{RED}ERROR: The amalgamate script is deprecated and will not work properly.{RESET}", file=sys.stderr)
-print(f"{RED}       Please use 'make' to build the project instead.{RESET}", file=sys.stderr)
-sys.exit(1)
-
 ## Pocket lang root directory. All the listed paths bellow are relative to
 ## the root path.
 ROOT_PATH = abspath(join(dirname(__file__), ".."))
@@ -31,7 +24,9 @@ def files(path, ext, filter_= lambda file : True):
 
 SOURCES = [
   *files('src/core/', '.c'),
+  *files('src/core/', '.cpp'),
   *files('src/libs/', '.c'),
+  *files('src/libs/', '.cpp'),
 ]
 
 PUBLIC_HEADER = join(ROOT_PATH, 'src/include/pocketlang.h')
@@ -131,5 +126,4 @@ def generate():
   
 if __name__ == '__main__':
   print(generate())
-
 

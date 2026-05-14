@@ -6,21 +6,24 @@ This guide covers how to integrate the PocketLang VM into your C application. Th
 
 To integrate PocketLang VM in your project:
 
-**Option 1: Using Make (Recommended)**
+**Option 1: Using CMake (Recommended)**
 
-Run `make` or `make release` to build the executable and static library. This will generate:
-- `build/Release/include/pocketlang.h` (header file)
-- `build/Release/lib/libpocketlang.a` (static library)
-- `build/Release/bin/pocket` (executable)
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
 
-Then link against the library and include the header file in your project.
+This will generate a static library and a CLI executable under the `build/`
+directory.
 
-**Option 2: Manual Integration**
+**Option 2: Using the amalgamated header**
 
-1. Add the `src/` directory to your project
-2. Add all C files in `src/core/` and `src/libs/` directories with your source files
-3. Add `src/include` to the include path
-4. Compile
+```bash
+python3 scripts/amalgamate.py > /tmp/pocketlang.h
+```
+
+Include the generated header in your project and define `PK_IMPLEMENT` in one
+translation unit.
 
 The examples in this document can be found in the `tests/native/` directory of the repository.
 
@@ -413,4 +416,3 @@ cl example0.c ../../src/core/*.c ../../src/libs/*.c /I../../src/include
 ```
 
 Note: On Unix-like systems, you may need to link with `-ldl` for dynamic library support.
-

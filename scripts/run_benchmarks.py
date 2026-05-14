@@ -11,8 +11,17 @@ from os.path import join, abspath, dirname, relpath, exists
 ## Absolute path of this file's directory.
 THIS_PATH = abspath(dirname(__file__))
 
-## Output debug cli executable's directory.
-POCKET_BINARY_DIR = abspath(join(THIS_PATH, "../build/Release/bin/"))
+## Candidate release cli executable paths relative to project root.
+POCKET_BINARY_CANDIDATES = (
+  "build/Release/bin/pocket",
+  "build/Release/pocket",
+  "build/bin/pocket",
+  "build/pocket",
+  "build-cmake/Release/bin/pocket",
+  "build-cmake/Release/pocket",
+  "build-cmake/bin/pocket",
+  "build-cmake/pocket",
+)
 
 ## Pocket lang root directory. All the listed paths bellow are relative to
 ## the BENCHMARKS_DIR.
@@ -73,12 +82,16 @@ def get_pocket_binary(name, fail):
   system = platform.system()
   if system not in ("Windows", "Linux", "Darwin"):
     error_exit("Unsupported platform")
-  binary = join(POCKET_BINARY_DIR, name)
-  if system == "Windows": binary += ".exe"
-  if not exists(binary):
-    if fail: error_exit(f"Pocket interpreter not found at: '{binary}'")
-    else: return None
-  return binary
+  for candidate in POCKET_BINARY_CANDIDATES:
+    candidate = candidate.rsplit('/', 1)[0] + '/' + name
+    binary = join(THIS_PATH, "..", candidate)
+    if system == "Windows":
+      binary += ".exe"
+    if exists(binary):
+      return abspath(binary)
+  if fail:
+    error_exit("Pocket interpreter not found in expected build paths.")
+  return None
 
 ## Set the pocketlang path for the current system to the compiled output.
 def update_interpreters():
