@@ -52,7 +52,8 @@ void pkByteBufferAddStringFmt(pkByteBuffer* self, PKVM* vm,
   va_end(copy);
 
   pkByteBufferReserve(self, vm, self->count + (size_t) length + 1);
-  vsnprintf((char*)self->data + self->count, self->capacity - self->count, fmt, args);
+  vsnprintf((char*)self->data + self->count,
+            self->capacity - self->count, fmt, args);
   self->count += length;
   va_end(args);
 }

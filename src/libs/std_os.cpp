@@ -124,7 +124,8 @@ void* osLoadDL(PKVM* vm, const char* path) {
 }
 
 PkHandle* osImportDL(PKVM* vm, void* handle) {
-  pkExportModuleFn export_fn = (pkExportModuleFn)dlsym(handle, PK_EXPORT_FN_NAME);
+  pkExportModuleFn export_fn =
+    (pkExportModuleFn)dlsym(handle, PK_EXPORT_FN_NAME);
   if (export_fn == NULL) {
     dlerror(); // Clear error.
     return NULL;

@@ -17,13 +17,13 @@ ROOT_PATH = abspath(join(dirname(__file__), ".."))
 ## A list of source files, to check if the fnv1a hash values match it's
 ## corresponding cstring in the CASE_ATTRIB(name, hash) macro calls.
 HASH_CHECK_LIST = [
-  "src/core/core.c",
-  "src/core/value.c",
+  "src/core/core.cpp",
+  "src/core/value.cpp",
 ]
 
 ## A list of extension to perform static checks, of all the files in the
 ## SOURCE_DIRS.
-CHECK_EXTENTIONS = ('.c', '.h', '.py', '.pk', '.js')
+CHECK_EXTENTIONS = ('.cpp', '.h', '.py', '.pk', '.js')
 
 ## A list of strings, if a line contains it we allow it to be longer than
 ## 79 characters, It's not "the correct way" but it works.
@@ -36,7 +36,7 @@ IGNORE_FILES = (
   "cli/argparse.h",             ## FIXME: collect all thirdparty files.  
   ## Contain longer lines. I shoule add something like static-check-off,
   ## static-check-on like clang or just use clang.
-  "src/libs/std_term.c",
+  "src/libs/std_term.cpp",
   ## Contain extendedted ascii characters that raise UnicodeDecodeError.
   "src/libs/std_term.pk",
 )

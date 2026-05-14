@@ -47,7 +47,8 @@ DEF(_typesHash,
 /*****************************************************************************/
 
 static void* _bytebuffNew(PKVM* vm) {
-  pkByteBuffer* self = (pkByteBuffer*)pkRealloc(vm, NULL, sizeof(pkByteBuffer));
+  pkByteBuffer* self =
+    (pkByteBuffer*)pkRealloc(vm, NULL, sizeof(pkByteBuffer));
   pkByteBufferInit(self);
   return self;
 }

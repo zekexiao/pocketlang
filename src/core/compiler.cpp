@@ -360,7 +360,6 @@ typedef struct sFunc {
 class Parser {
 public:
 
-
   // Parser need a reference of the PKVM to allocate strings (for string
   // literals in the source) and to report error if there is any.
   PKVM* vm;
@@ -433,9 +432,9 @@ public:
   bool has_syntax_error;
   bool has_errors;
 
-
   // Parser methods
-  void init(PKVM* vm, Compiler* compiler, const char* source, const char* path);
+  void init(PKVM* vm, Compiler* compiler,
+            const char* source, const char* path);
   void reportError(Token tk, const char* fmt, va_list args);
   Token makeErrToken();
   char peekChar();
@@ -448,7 +447,6 @@ public:
   void skipLineComment();
   void setNextTwoCharToken(char c, _TokenType one, _TokenType two);
 };
-
 
 // Result type for an identifier definition.
 typedef enum {
@@ -481,7 +479,6 @@ typedef enum {
 } BlockType;
 class Compiler {
 public:
-
 
   // The parser of the compiler which contains all the parsing context for the
   // current compilation.
@@ -545,7 +542,8 @@ public:
   int bifn_list_join;
 
   // Compiler methods
-  void init(PKVM* vm, const char* source, Module* module, const CompileOptions* options);
+  void init(PKVM* vm, const char* source, Module* module,
+            const CompileOptions* options);
   void syntaxError(Token tk, const char* fmt, ...);
   void semanticError(Token tk, const char* fmt, ...);
   void resolveError(Token tk, const char* fmt, ...);
@@ -644,7 +642,8 @@ static int findBuiltinFunction(const PKVM* vm,
                                const char* name, uint32_t length);
 
 // This should be called once the compiler initialized (to access it's fields).
-void Parser::init(PKVM* vm, Compiler* compiler, const char* source, const char* path) {
+void Parser::init(PKVM* vm, Compiler* compiler,
+                  const char* source, const char* path) {
 
   this->vm = vm;
 
@@ -677,7 +676,8 @@ void Parser::init(PKVM* vm, Compiler* compiler, const char* source, const char* 
   this->need_more_lines = false;
 }
 
-void Compiler::init(PKVM* vm, const char* source, Module* module, const CompileOptions* options) {
+void Compiler::init(PKVM* vm, const char* source,
+                    Module* module, const CompileOptions* options) {
 
   memset(this, 0, sizeof(Compiler));
 
@@ -788,7 +788,6 @@ void Compiler::checkMaxConstantsReached(int index) {
 /*****************************************************************************/
 
 // Forward declaration of lexer methods.
-
 
 void Compiler::eatString(bool single_quote) {
   Parser* parser = &this->parser;
@@ -971,7 +970,8 @@ void Compiler::eatNumber() {
   char c = *parser->token_start;
 
   // Binary literal.
-  if (c == '0' && ((parser->peekChar() == 'b') || (parser->peekChar() == 'B'))) {
+  if (c == '0' &&
+      ((parser->peekChar() == 'b') || (parser->peekChar() == 'B'))) {
     parser->eatChar(); // Consume '0b'
 
     uint64_t bin = 0;
@@ -1567,8 +1567,6 @@ int Compiler::findUpvalue(Func* func, const char* name, uint32_t length) {
   return -1;
 }
 
-
-
 // Will check if the name already defined.
 NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
 
@@ -1625,103 +1623,97 @@ NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
 
 // Forward declaration of codegen functions.
 
-
-
-
 // Forward declaration of grammar functions.
-
-
-
-
-
 
 // true, false, null, self.
 
-
-#define NO_RULE { NULL,          NULL,          PREC_NONE }
+#define NO_RULE { NULL,  NULL,  PREC_NONE }
 #define NO_INFIX PREC_NONE
+#define _C(fn) &Compiler::fn
 
-GrammarRule rules[] = {  // Prefix       Infix             Infix Precedence
-  /* TK_ERROR      */   NO_RULE,
-  /* TK_EOF        */   NO_RULE,
-  /* TK_LINE       */   NO_RULE,
-  /* TK_DOT        */ { NULL,          &Compiler::exprAttrib,       PREC_ATTRIB },
-  /* TK_DOTDOT     */ { NULL,          &Compiler::exprBinaryOp,     PREC_RANGE },
-  /* TK_COMMA      */   NO_RULE,
-  /* TK_COLLON     */   NO_RULE,
-  /* TK_SEMICOLLON */   NO_RULE,
-  /* TK_HASH       */   NO_RULE,
-  /* TK_LPARAN     */ { &Compiler::exprGrouping,  &Compiler::exprCall,         PREC_CALL },
-  /* TK_RPARAN     */   NO_RULE,
-  /* TK_LBRACKET   */ { &Compiler::exprList,      &Compiler::exprSubscript,    PREC_SUBSCRIPT },
-  /* TK_RBRACKET   */   NO_RULE,
-  /* TK_LBRACE     */ { &Compiler::exprMap,       NULL,             NO_INFIX },
-  /* TK_RBRACE     */   NO_RULE,
-  /* TK_PERCENT    */ { NULL,          &Compiler::exprBinaryOp,     PREC_FACTOR },
-  /* TK_TILD       */ { &Compiler::exprUnaryOp,   NULL,             NO_INFIX },
-  /* TK_AMP        */ { NULL,          &Compiler::exprBinaryOp,     PREC_BITWISE_AND },
-  /* TK_PIPE       */ { NULL,          &Compiler::exprBinaryOp,     PREC_BITWISE_OR },
-  /* TK_CARET      */ { NULL,          &Compiler::exprBinaryOp,     PREC_BITWISE_XOR },
-  /* TK_ARROW      */   NO_RULE,
-  /* TK_PLUS       */ { &Compiler::exprUnaryOp,   &Compiler::exprBinaryOp,     PREC_TERM },
-  /* TK_MINUS      */ { &Compiler::exprUnaryOp,   &Compiler::exprBinaryOp,     PREC_TERM },
-  /* TK_STAR       */ { NULL,          &Compiler::exprBinaryOp,     PREC_FACTOR },
-  /* TK_FSLASH     */ { NULL,          &Compiler::exprBinaryOp,     PREC_FACTOR },
-  /* TK_STARSTAR   */ { NULL,          &Compiler::exprBinaryOp,     PREC_EXPONENT },
-  /* TK_BSLASH     */   NO_RULE,
-  /* TK_EQ         */   NO_RULE,
-  /* TK_GT         */ { NULL,          &Compiler::exprBinaryOp,     PREC_COMPARISION },
-  /* TK_LT         */ { NULL,          &Compiler::exprBinaryOp,     PREC_COMPARISION },
-  /* TK_EQEQ       */ { NULL,          &Compiler::exprBinaryOp,     PREC_EQUALITY },
-  /* TK_NOTEQ      */ { NULL,          &Compiler::exprBinaryOp,     PREC_EQUALITY },
-  /* TK_GTEQ       */ { NULL,          &Compiler::exprBinaryOp,     PREC_COMPARISION },
-  /* TK_LTEQ       */ { NULL,          &Compiler::exprBinaryOp,     PREC_COMPARISION },
-  /* TK_PLUSEQ     */   NO_RULE,
-  /* TK_MINUSEQ    */   NO_RULE,
-  /* TK_STAREQ     */   NO_RULE,
-  /* TK_DIVEQ      */   NO_RULE,
-  /* TK_MODEQ      */   NO_RULE,
-  /* TK_POWEQ      */   NO_RULE,
-  /* TK_ANDEQ      */   NO_RULE,
-  /* TK_OREQ       */   NO_RULE,
-  /* TK_XOREQ      */   NO_RULE,
-  /* TK_SRIGHT     */ { NULL,          &Compiler::exprBinaryOp,     PREC_BITWISE_SHIFT },
-  /* TK_SLEFT      */ { NULL,          &Compiler::exprBinaryOp,     PREC_BITWISE_SHIFT },
-  /* TK_SRIGHTEQ   */   NO_RULE,
-  /* TK_SLEFTEQ    */   NO_RULE,
-  /* TK_CLASS      */   NO_RULE,
-  /* TK_FROM       */   NO_RULE,
-  /* TK_IMPORT     */   NO_RULE,
-  /* TK_AS         */   NO_RULE,
-  /* TK_DEF        */   NO_RULE,
-  /* TK_EXTERN     */   NO_RULE,
-  /* TK_FN         */ { &Compiler::exprFunction,  NULL,             NO_INFIX },
-  /* TK_END        */   NO_RULE,
-  /* TK_NULL       */ { &Compiler::exprValue,     NULL,             NO_INFIX },
-  /* TK_IN         */ { NULL,          &Compiler::exprBinaryOp,     PREC_TEST },
-  /* TK_IS         */ { NULL,          &Compiler::exprBinaryOp,     PREC_TEST },
-  /* TK_AND        */ { NULL,          &Compiler::exprAnd,          PREC_LOGICAL_AND },
-  /* TK_OR         */ { NULL,          &Compiler::exprOr,           PREC_LOGICAL_OR },
-  /* TK_NOT        */ { &Compiler::exprUnaryOp,   NULL,             PREC_UNARY },
-  /* TK_TRUE       */ { &Compiler::exprValue,     NULL,             NO_INFIX },
-  /* TK_FALSE      */ { &Compiler::exprValue,     NULL,             NO_INFIX },
-  /* TK_SELF       */ { &Compiler::exprSelf,      NULL,             NO_INFIX },
-  /* TK_SUPER      */ { &Compiler::exprSuper,     NULL,             NO_INFIX },
-  /* TK_DO         */   NO_RULE,
-  /* TK_THEN       */   NO_RULE,
-  /* TK_WHILE      */   NO_RULE,
-  /* TK_FOR        */   NO_RULE,
-  /* TK_IF         */   NO_RULE,
-  /* TK_ELIF       */   NO_RULE,
-  /* TK_ELSE       */   NO_RULE,
-  /* TK_BREAK      */   NO_RULE,
-  /* TK_CONTINUE   */   NO_RULE,
-  /* TK_RETURN     */   NO_RULE,
-  /* TK_NAME       */ { &Compiler::exprName,      NULL,             NO_INFIX },
-  /* TK_NUMBER     */ { &Compiler::exprLiteral,   NULL,             NO_INFIX },
-  /* TK_STRING     */ { &Compiler::exprLiteral,   NULL,             NO_INFIX },
-  /* TK_STRING_INTERP */ { &Compiler::exprInterpolation, NULL,      NO_INFIX },
+GrammarRule rules[] = { // Prefix        Infix           Infix Precedence
+  /* TK_ERROR      */  NO_RULE,
+  /* TK_EOF        */  NO_RULE,
+  /* TK_LINE       */  NO_RULE,
+  /* TK_DOT        */ { NULL,            _C(exprAttrib),  PREC_ATTRIB },
+  /* TK_DOTDOT     */ { NULL,            _C(exprBinaryOp),PREC_RANGE },
+  /* TK_COMMA      */  NO_RULE,
+  /* TK_COLLON     */  NO_RULE,
+  /* TK_SEMICOLLON */  NO_RULE,
+  /* TK_HASH       */  NO_RULE,
+  /* TK_LPARAN     */ { _C(exprGrouping),_C(exprCall),    PREC_CALL },
+  /* TK_RPARAN     */  NO_RULE,
+  /* TK_LBRACKET   */ { _C(exprList),    _C(exprSubscript),PREC_SUBSCRIPT },
+  /* TK_RBRACKET   */  NO_RULE,
+  /* TK_LBRACE     */ { _C(exprMap),     NULL,            NO_INFIX },
+  /* TK_RBRACE     */  NO_RULE,
+  /* TK_PERCENT    */ { NULL,            _C(exprBinaryOp),PREC_FACTOR },
+  /* TK_TILD       */ { _C(exprUnaryOp), NULL,            NO_INFIX },
+  /* TK_AMP        */ { NULL,            _C(exprBinaryOp),PREC_BITWISE_AND },
+  /* TK_PIPE       */ { NULL,            _C(exprBinaryOp),PREC_BITWISE_OR },
+  /* TK_CARET      */ { NULL,            _C(exprBinaryOp),PREC_BITWISE_XOR },
+  /* TK_ARROW      */  NO_RULE,
+  /* TK_PLUS       */ { _C(exprUnaryOp), _C(exprBinaryOp),PREC_TERM },
+  /* TK_MINUS      */ { _C(exprUnaryOp), _C(exprBinaryOp),PREC_TERM },
+  /* TK_STAR       */ { NULL,            _C(exprBinaryOp),PREC_FACTOR },
+  /* TK_FSLASH     */ { NULL,            _C(exprBinaryOp),PREC_FACTOR },
+  /* TK_STARSTAR   */ { NULL,            _C(exprBinaryOp),PREC_EXPONENT },
+  /* TK_BSLASH     */  NO_RULE,
+  /* TK_EQ         */  NO_RULE,
+  /* TK_GT         */ { NULL,            _C(exprBinaryOp),PREC_COMPARISION },
+  /* TK_LT         */ { NULL,            _C(exprBinaryOp),PREC_COMPARISION },
+  /* TK_EQEQ       */ { NULL,            _C(exprBinaryOp),PREC_EQUALITY },
+  /* TK_NOTEQ      */ { NULL,            _C(exprBinaryOp),PREC_EQUALITY },
+  /* TK_GTEQ       */ { NULL,            _C(exprBinaryOp),PREC_COMPARISION },
+  /* TK_LTEQ       */ { NULL,            _C(exprBinaryOp),PREC_COMPARISION },
+  /* TK_PLUSEQ     */  NO_RULE,
+  /* TK_MINUSEQ    */  NO_RULE,
+  /* TK_STAREQ     */  NO_RULE,
+  /* TK_DIVEQ      */  NO_RULE,
+  /* TK_MODEQ      */  NO_RULE,
+  /* TK_POWEQ      */  NO_RULE,
+  /* TK_ANDEQ      */  NO_RULE,
+  /* TK_OREQ       */  NO_RULE,
+  /* TK_XOREQ      */  NO_RULE,
+  /* TK_SRIGHT     */ { NULL,            _C(exprBinaryOp),PREC_BITWISE_SHIFT },
+  /* TK_SLEFT      */ { NULL,            _C(exprBinaryOp),PREC_BITWISE_SHIFT },
+  /* TK_SRIGHTEQ   */  NO_RULE,
+  /* TK_SLEFTEQ    */  NO_RULE,
+  /* TK_CLASS      */  NO_RULE,
+  /* TK_FROM       */  NO_RULE,
+  /* TK_IMPORT     */  NO_RULE,
+  /* TK_AS         */  NO_RULE,
+  /* TK_DEF        */  NO_RULE,
+  /* TK_EXTERN     */  NO_RULE,
+  /* TK_FN         */ { _C(exprFunction),NULL,            NO_INFIX },
+  /* TK_END        */  NO_RULE,
+  /* TK_NULL       */ { _C(exprValue),   NULL,            NO_INFIX },
+  /* TK_IN         */ { NULL,            _C(exprBinaryOp),PREC_TEST },
+  /* TK_IS         */ { NULL,            _C(exprBinaryOp),PREC_TEST },
+  /* TK_AND        */ { NULL,            _C(exprAnd),     PREC_LOGICAL_AND },
+  /* TK_OR         */ { NULL,            _C(exprOr),      PREC_LOGICAL_OR },
+  /* TK_NOT        */ { _C(exprUnaryOp), NULL,            PREC_UNARY },
+  /* TK_TRUE       */ { _C(exprValue),   NULL,            NO_INFIX },
+  /* TK_FALSE      */ { _C(exprValue),   NULL,            NO_INFIX },
+  /* TK_SELF       */ { _C(exprSelf),    NULL,            NO_INFIX },
+  /* TK_SUPER      */ { _C(exprSuper),   NULL,            NO_INFIX },
+  /* TK_DO         */  NO_RULE,
+  /* TK_THEN       */  NO_RULE,
+  /* TK_WHILE      */  NO_RULE,
+  /* TK_FOR        */  NO_RULE,
+  /* TK_IF         */  NO_RULE,
+  /* TK_ELIF       */  NO_RULE,
+  /* TK_ELSE       */  NO_RULE,
+  /* TK_BREAK      */  NO_RULE,
+  /* TK_CONTINUE   */  NO_RULE,
+  /* TK_RETURN     */  NO_RULE,
+  /* TK_NAME       */ { _C(exprName),    NULL,            NO_INFIX },
+  /* TK_NUMBER     */ { _C(exprLiteral), NULL,            NO_INFIX },
+  /* TK_STRING     */ { _C(exprLiteral), NULL,            NO_INFIX },
+  /* TK_STRING_INTERP */ { _C(exprInterpolation), NULL,   NO_INFIX },
 };
+
+#undef _C
 
 static GrammarRule* getRule(_TokenType type) {
   return &(rules[(int)type]);
@@ -2633,8 +2625,6 @@ void Compiler::patchForward(Fn* fn, int index, int name) {
 /*****************************************************************************/
 /* COMPILING (PARSE TOPLEVEL)                                                */
 /*****************************************************************************/
-
-
 
 // Compile a class and return it's index in the module's types buffer.
 int Compiler::compileClass() {
