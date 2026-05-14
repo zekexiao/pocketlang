@@ -83,8 +83,9 @@ def get_pocket_binary(name, fail):
   if system not in ("Windows", "Linux", "Darwin"):
     error_exit("Unsupported platform")
   for candidate in POCKET_BINARY_CANDIDATES:
-    candidate = candidate.rsplit('/', 1)[0] + '/' + name
-    binary = join(THIS_PATH, "..", candidate)
+    candidate_dir = dirname(candidate)
+    candidate_name = join(candidate_dir, name) if candidate_dir else name
+    binary = join(THIS_PATH, "..", candidate_name)
     if system == "Windows":
       binary += ".exe"
     if exists(binary):
