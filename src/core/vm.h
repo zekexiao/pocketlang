@@ -58,7 +58,8 @@ struct PkHandle {
 
 // PocketLang Virtual Machine. It'll contain the state of the execution, stack,
 // heap, and manage memory allocations.
-struct PKVM {
+class PKVM {
+public:
 
   // The first object in the link list of all heap allocated objects.
   Object* first;
@@ -132,127 +133,29 @@ struct PKVM {
 
   // Current fiber.
   Fiber* fiber;
-};
 
-// A realloc() function wrapper which handles memory allocations of the VM.
-// - To allocate new memory pass NULL to parameter [memory] and 0 to
-//   parameter [old_size] on failure it'll return NULL.
-// - To free an already allocated memory pass 0 to parameter [old_size]
-//   and it'll returns NULL.
-// - The [old_size] parameter is required to keep track of the VM's
-//    allocations to trigger the garbage collections.
-// If deallocating (free) using vmRealloc the old_size should be 0 as it's not
-// going to track deallocated bytes, instead use garbage collector to do it.
-void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size);
-
-// Create and return a new handle for the [value].
-PkHandle* vmNewHandle(PKVM* vm, Var value);
-
-// If the stack size is less than [size], the stack will grow to keep more
-// values on it.
-void vmEnsureStackSize(PKVM* vm, Fiber* fiber, int size);
-
-// Trigger garbage collection. This is an implementation of mark and sweep
-// garbage collection (https://en.wikipedia.org/wiki/Tracing_garbage_collection).
-//
-// 1. MARKING PHASE
-//
-//       |          |
-//       |  [obj0] -+---> [obj2] -> [obj6]    .------- Garbage --------.
-//       |  [obj3]  |       |                 |                        |
-//       |  [obj8]  |       '-----> [obj1]    |   [obj7] ---> [obj5]   |
-//       '----------'                         |       [obj4]           |
-//        working set                         '------------------------'
-//
-//   First we preform a tree traversal from all the vm's root objects. such as
-//   stack values, temp references, handles, vm's running fiber, current
-//   compiler (if it has any) etc. Mark them (ie. is_marked = true) and add
-//   them to the working set (the gray_list). Pop the top object from the
-//   working set add all of it's referenced objects to the working set and mark
-//   it black (try-color marking) We'll keep doing this till the working set
-//   become empty, at this point any object which isn't marked is a garbage.
-//
-//   Every single heap allocated objects will be in the VM's link list. Those
-//   objects which are reachable have marked (ie. is_marked = true) once the
-//   marking phase is completed.
-//    .----------------.
-//    |  VM            |
-//    | Object* first -+--------> [obj8] -> [obj7] -> [obj6] ... [obj0] -> NULL
-//    '----------------' marked =  true      false     true       true
-//
-// 2. SWEEPING PHASE
-//
-//    .----------------.                .-------------.
-//    |  VM            |                |             V
-//    | Object* first -+--------> [obj8]    [obj7]    [obj6] ... [obj0] -> NULL
-//    '----------------' marked =  true      false     true       true
-//                                       '--free()--'
-//
-//   Once the marking phase is done, we iterate through the objects and remove
-//   the objects which are not marked from the linked list and deallocate them.
-//
-void vmCollectGarbage(PKVM* vm);
-
-// Push the object to temporary references stack. This reference will prevent
-// the object from garbage collection.
-void vmPushTempRef(PKVM* vm, Object* obj);
-
-// Pop the top most object from temporary reference stack.
-void vmPopTempRef(PKVM* vm);
-
-// Regsiter a module to the VM's modules map, the key could be either it's
-// name (for core module) or it's path (if it's a compiled script). If the
-// key doesn't match either of it's name or path an assertion will fail.
-void vmRegisterModule(PKVM* vm, Module* module, String* key);
-
-// Returns the module, where the [key] could be either it's name or path that
-// was used to register the module. If it doesn't exists, returns NULL.
-Module* vmGetModule(PKVM* vm, String* key);
-
-// ((Context switching - start))
-// Prepare a new fiber for execution with the given arguments. That can be used
-// different fiber_run apis. Return true on success, otherwise it'll set the
-// error to the vm's current fiber (if it has any).
-bool vmPrepareFiber(PKVM* vm, Fiber* fiber, int argc, Var* argv);
-
-// ((Context switching - resume))
-// Switch the running fiber of the vm from the current fiber to the provided
-// [fiber]. with an optional [value] (could be set to NULL). used in different
-// fiber_resume apis. Return true on success, otherwise it'll set the error to
-// the vm's current fiber (if it has any).
-bool vmSwitchFiber(PKVM* vm, Fiber* fiber, Var* value);
-
-// Yield from the current fiber. If the [value] isn't NULL it'll set it as the
-// yield value.
-void vmYieldFiber(PKVM* vm, Var* value);
-
-// Runs the [fiber] if it's at yielded state, this will resume the execution
-// till the next yield or return statement, and return result.
-PkResult vmRunFiber(PKVM* vm, Fiber* fiber);
-
-// Runs the function and if the [ret] is not NULL the return value will be set.
-// [argv] should be the first argument pointer following the rest of the
-// arguments in an array.
-PkResult vmCallFunction(PKVM* vm, Closure* fn, int argc, Var* argv, Var* ret);
-
-// Call the method on the [self], (witch has retrieved by the getMethod()
-// function) and if the [ret] is not NULL, the return value will be set.
-// [argv] should be the first argument pointer following the rest of the
-// arguments in an array.
-PkResult vmCallMethod(PKVM* vm, Var self, Closure* fn,
-                      int argc, Var* argv, Var* ret);
-
-// Import a module with the [path] and return it. The path sepearation should
-// be '/' example: to import module "a.b" the [path] should be "a/b".
-// If the [from] is not NULL, it'll be used for relative path search.
-// On failure, it'll set an error and return VAR_NULL.
-Var vmImportModule(PKVM* vm, String* from, String* path);
-
+  // VM methods (converted from free functions).
+  void* vmRealloc(void* memory, size_t old_size, size_t new_size);
+  PkHandle* vmNewHandle(Var value);
+  void vmEnsureStackSize(Fiber* fiber, int size);
+  void vmCollectGarbage();
+  void vmPushTempRef(Object* obj);
+  void vmPopTempRef();
+  void vmRegisterModule(Module* module, String* key);
+  Module* vmGetModule(String* key);
+  bool vmPrepareFiber(Fiber* fiber, int argc, Var* argv);
+  bool vmSwitchFiber(Fiber* fiber, Var* value);
+  void vmYieldFiber(Var* value);
+  PkResult vmRunFiber(Fiber* fiber);
+  PkResult vmCallFunction(Closure* fn, int argc, Var* argv, Var* ret);
+  PkResult vmCallMethod(Var self, Closure* fn, int argc, Var* argv, Var* ret);
+  Var vmImportModule(String* from, String* path);
 #ifndef PK_NO_DL
-
-// Release platform dependent native extension module handle. (*.dll, *.so).
-void vmUnloadDlHandle(PKVM* vm, void* handle);
-
+  void vmUnloadDlHandle(void* handle);
 #endif
+
+private:
+  void vmReportError();
+};
 
 #endif // PK_VM_H

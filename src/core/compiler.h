@@ -23,7 +23,7 @@ typedef enum {
 // one by one. Instead it'll generate the target code as it reads the source
 // (directly from lexing to codegen). Despite it's faster than multipass
 // compilers, we're restricted syntax-wise and from compile-time optimizations.
-typedef struct Compiler Compiler;
+class Compiler;
 
 // The options to configure the compilation provided by the command line
 // arguments (or other ways the host application provides). For now this

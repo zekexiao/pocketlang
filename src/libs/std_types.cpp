@@ -47,7 +47,8 @@ DEF(_typesHash,
 /*****************************************************************************/
 
 static void* _bytebuffNew(PKVM* vm) {
-  pkByteBuffer* self = pkRealloc(vm, NULL, sizeof(pkByteBuffer));
+  pkByteBuffer* self =
+    (pkByteBuffer*)pkRealloc(vm, NULL, sizeof(pkByteBuffer));
   pkByteBufferInit(self);
   return self;
 }
@@ -64,7 +65,7 @@ DEF(_bytebuffReserve,
   double size;
   if (!pkValidateSlotNumber(vm, 1, &size)) return;
 
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
   pkByteBufferReserve(self, vm, (size_t) size);
 }
 
@@ -73,7 +74,7 @@ DEF(_bytebuffFill,
   "types.ByteBuffer.fill(value:Number) -> Null",
   "Fill the buffer with the given byte value. Note that the value must be in "
   "between 0 and 0xff inclusive.") {
-  uint32_t n;
+  int32_t n;
   if (!pkValidateSlotInteger(vm, 1, &n)) return;
   if (n < 0x00 || n > 0xff) {
     pkSetRuntimeErrorFmt(vm, "Expected integer in range "
@@ -84,7 +85,7 @@ DEF(_bytebuffFill,
   double count;
   if (!pkValidateSlotNumber(vm, 1, &count)) return;
 
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
   pkByteBufferFill(self, vm, (uint8_t) n, (int) count);
 }
 
@@ -92,7 +93,7 @@ DEF(_bytebuffClear,
   "types.ByteBuffer.clear() -> Null",
   "Clear the buffer values.") {
   // TODO: Should I also zero or reduce the capacity?
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
   self->count = 0;
 }
 
@@ -102,7 +103,7 @@ DEF(_bytebuffWrite,
   "Writes the data to the buffer. If the [data] is a number that should be in "
   "between 0 and 0xff inclusively. If the [data] is a string all the bytes "
   "of the string will be written to the buffer.") {
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
 
   PkVarType type = pkGetSlotType(vm, 1);
 
@@ -113,7 +114,7 @@ DEF(_bytebuffWrite,
       return;
 
     case PK_NUMBER: {
-      uint32_t i;
+      int32_t i;
       if (!pkValidateSlotInteger(vm, 1, &i)) return;
       if (i < 0x00 || i > 0xff) {
         pkSetRuntimeErrorFmt(vm, "Expected integer in range "
@@ -157,7 +158,7 @@ DEF(_bytebuffSubscriptGet,
     return;
   }
 
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
 
   if (index < 0 || index >= self->count) {
     pkSetRuntimeError(vm, "Index out of bound");
@@ -183,7 +184,7 @@ DEF(_bytebuffSubscriptSet,
     return;
   }
 
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
 
   if (index < 0 || index >= self->count) {
     pkSetRuntimeError(vm, "Index out of bound");
@@ -202,14 +203,14 @@ DEF(_bytebuffSubscriptSet,
 DEF(_bytebuffString,
   "types.ByteBuffer.string() -> String",
   "Returns the buffered values as String.") {
-  pkByteBuffer* self = pkGetSelf(vm);
-  pkSetSlotStringLength(vm, 0, self->data, self->count);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
+  pkSetSlotStringLength(vm, 0, (const char*)self->data, self->count);
 }
 
 DEF(_bytebuffCount,
   "types.ByteBuffer.count() -> Number",
   "Returns the number of bytes that have written to the buffer.") {
-  pkByteBuffer* self = pkGetSelf(vm);
+  pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
   pkSetSlotNumber(vm, 0, self->count);
 }
 
@@ -222,7 +223,7 @@ typedef struct {
 } Vector;
 
 static void* _vectorNew(PKVM* vm) {
-  Vector* vec = pkRealloc(vm, NULL, sizeof(Vector));
+  Vector* vec = (Vector*)pkRealloc(vm, NULL, sizeof(Vector));
   memset(vec, 0, sizeof(Vector));
   return vec;
 }
@@ -237,7 +238,7 @@ DEF(_vectorInit,
   if (!pkCheckArgcRange(vm, argc, 0, 3)) return;
 
   double x, y, z;
-  Vector* vec = pkGetSelf(vm);
+  Vector* vec = (Vector*)pkGetSelf(vm);
 
   if (argc == 0) return;
   if (argc >= 1) {
@@ -262,7 +263,7 @@ DEF(_vectorGetter,
   const char* name; uint32_t length;
   if (!pkValidateSlotString(vm, 1, &name, &length)) return;
 
-  Vector* vec = pkGetSelf(vm);
+  Vector* vec = (Vector*)pkGetSelf(vm);
   if (length == 1) {
     if (*name == 'x') {
       pkSetSlotNumber(vm, 0, vec->x);
@@ -282,7 +283,7 @@ DEF(_vectorSetter,
   const char* name; uint32_t length;
   if (!pkValidateSlotString(vm, 1, &name, &length)) return;
 
-  Vector* vec = pkGetSelf(vm);
+  Vector* vec = (Vector*)pkGetSelf(vm);
 
   if (length == 1) {
     if (*name == 'x') {
@@ -303,7 +304,7 @@ DEF(_vectorSetter,
 
 DEF(_vectorRepr,
   "types.Vector._repr()", "") {
-  Vector* vec = pkGetSelf(vm);
+  Vector* vec = (Vector*)pkGetSelf(vm);
   pkSetSlotStringFmt(vm, 0, "[%g, %g, %g]", vec->x, vec->y, vec->z);
 }
 

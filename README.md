@@ -63,12 +63,19 @@ directory. They were executed using a small python script in the test directory.
 
 ## Building From Source
 
-It can be build from source easily without any dependencies, or additional requirements
-except for a c99 compatible compiler. It can be compiled with the following command.
+It can be build from source easily without any dependencies, or additional
+requirements except for a c99 compatible compiler and a c++17 compiler for the
+CLI. It can be compiled with the following command.
 
-#### GCC / MinGw / Clang (alias with gcc)
+#### GCC / MinGw / Clang
 ```
-gcc -o pocket cli/*.c src/core/*.c src/libs/*.c -Isrc/include -lm -ldl
+g++ -std=c++17 -o pocket cli/*.cpp src/core/*.c src/libs/*.c -Isrc/include -lm -ldl
+```
+
+#### CMake (recommended)
+```
+cmake -S . -B build-cmake
+cmake --build build-cmake
 ```
 
 #### MSVC
@@ -95,7 +102,7 @@ for the MSVS installation path and setup the build environment.
 1. Create an empty project file / makefile.
 2. Add all C files in the src/core/ directory.
 3. Add all C files in the src/libs/ directory.
-4. Add all C files in the cli/ directory.
+4. Add all C++ files in the cli/ directory.
 5. Add `src/include` to include path.
 6. If \*nix link m, dl
 7. Compile.

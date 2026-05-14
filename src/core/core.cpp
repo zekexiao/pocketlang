@@ -150,7 +150,7 @@ void initializeModule(PKVM* vm, Module* module, bool is_main) {
     // allocations everytime here.
     name = newString(vm, "@main");
     module->name = name;
-    vmPushTempRef(vm, &name->_super); // _main.
+    vm->vmPushTempRef(&name->_super); // _main.
   } else {
     ASSERT(module->name != NULL, OOPS);
     name = module->name;
@@ -167,7 +167,7 @@ void initializeModule(PKVM* vm, Module* module, bool is_main) {
 
   moduleSetGlobal(vm, module, "_name", 5, VAR_OBJ(name));
 
-  if (is_main) vmPopTempRef(vm); // _main.
+  if (is_main) vm->vmPopTempRef(); // _main.
 }
 
 /*****************************************************************************/
@@ -185,21 +185,21 @@ String* varToString(PKVM* vm, Var self, bool repr) {
     bool has_method = false;
     if (!repr) {
       String* name = newString(vm, LITS__str); // TODO: static vm string?.
-      vmPushTempRef(vm, &name->_super); // name.
+      vm->vmPushTempRef(&name->_super); // name.
       has_method = hasMethod(vm, self, name, &closure);
-      vmPopTempRef(vm); // name.
+      vm->vmPopTempRef(); // name.
     }
 
     if (!has_method) {
       String* name = newString(vm, LITS__repr); // TODO: static vm string?.
-      vmPushTempRef(vm, &name->_super); // name.
+      vm->vmPushTempRef(&name->_super); // name.
       has_method = hasMethod(vm, self, name, &closure);
-      vmPopTempRef(vm); // name.
+      vm->vmPopTempRef(); // name.
     }
 
     if (has_method) {
       Var ret = VAR_NULL;
-      PkResult result = vmCallMethod(vm, self, closure, 0, NULL, &ret);
+      PkResult result = vm->vmCallMethod(self, closure, 0, NULL, &ret);
       if (result != PK_RESULT_SUCCESS) return NULL;
 
       if (!IS_OBJ_TYPE(ret, OBJ_STRING)) {
@@ -226,13 +226,13 @@ static inline bool _callUnaryOpMethod(PKVM* vm, Var self,
                                       const char* method_name, Var* ret) {
   Closure* closure = NULL;
   String* name = newString(vm, method_name);
-  vmPushTempRef(vm, &name->_super); // name.
+  vm->vmPushTempRef(&name->_super); // name.
   bool has_method = hasMethod(vm, self, name, &closure);
-  vmPopTempRef(vm); // name.
+  vm->vmPopTempRef(); // name.
 
   if (!has_method) return false;
 
-  vmCallMethod(vm, self, closure, 0, NULL, ret);
+  vm->vmCallMethod(self, closure, 0, NULL, ret);
   return true;
 }
 
@@ -243,13 +243,13 @@ static inline bool _callBinaryOpMethod(PKVM* vm, Var self, Var other,
                                       const char* method_name, Var* ret) {
   Closure* closure = NULL;
   String* name = newString(vm, method_name);
-  vmPushTempRef(vm, &name->_super); // name.
+  vm->vmPushTempRef(&name->_super); // name.
   bool has_method = hasMethod(vm, self, name, &closure);
-  vmPopTempRef(vm); // name.
+  vm->vmPopTempRef(); // name.
 
   if (!has_method) return false;
 
-  vmCallMethod(vm, self, closure, 1, &other, ret);
+  vm->vmCallMethod(self, closure, 1, &other, ret);
   return true;
 }
 
@@ -356,40 +356,40 @@ DEF(coreDir,
     case PK_CLOSURE:
     case PK_FIBER: {
       List* list = newList(vm, 8);
-      vmPushTempRef(vm, &list->_super); // list.
+      vm->vmPushTempRef(&list->_super); // list.
       _collectMethods(vm, list, getClass(vm, v));
-      vmPopTempRef(vm); // list.
+      vm->vmPopTempRef(); // list.
       RET(VAR_OBJ(list));
     }
 
     case PK_MODULE: {
       Module* m = (Module*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vmPushTempRef(vm, &list->_super); // list.
+      vm->vmPushTempRef(&list->_super); // list.
       for (uint32_t i = 0; i < m->globals.count; i++) {
         Var name = m->constants.data[m->global_names.data[i]];
         ASSERT(IS_OBJ_TYPE(name, OBJ_STRING), OOPS);
         listAppend(vm, list, name);
       }
-      vmPopTempRef(vm); // list.
+      vm->vmPopTempRef(); // list.
       RET(VAR_OBJ(list));
     } break;
 
     case PK_CLASS: {
       Class* cls = (Class*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vmPushTempRef(vm, &list->_super); // list.
+      vm->vmPushTempRef(&list->_super); // list.
       _collectMethods(vm, list, cls);
       // TODO: if we add static variables to classes it should be
       // added here as well.
-      vmPopTempRef(vm); // list.
+      vm->vmPopTempRef(); // list.
       RET(VAR_OBJ(list));
     } break;
 
     case PK_INSTANCE: {
       Instance* inst = (Instance*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vmPushTempRef(vm, &list->_super); // list.
+      vm->vmPushTempRef(&list->_super); // list.
       for (uint32_t i = 0; i < inst->attribs->capacity; i++) {
         Var key = (inst->attribs->entries + i)->key;
         if (!IS_UNDEF(key)) {
@@ -398,7 +398,7 @@ DEF(coreDir,
         }
       }
       _collectMethods(vm, list, inst->cls);
-      vmPopTempRef(vm); // list.
+      vm->vmPopTempRef(); // list.
       RET(VAR_OBJ(list));
     } break;
   }
@@ -428,9 +428,9 @@ DEF(coreAssert,
         msg = (String*)AS_OBJ(ARG(2));
       }
 
-      vmPushTempRef(vm, &msg->_super); // msg.
+      vm->vmPushTempRef(&msg->_super); // msg.
       VM_SET_ERROR(vm, stringFormat(vm, "Assertion failed: '@'.", msg));
-      vmPopTempRef(vm); // msg.
+      vm->vmPopTempRef(); // msg.
     } else {
       VM_SET_ERROR(vm, newString(vm, "Assertion failed."));
     }
@@ -507,7 +507,7 @@ DEF(coreYield,
     RET_ERR(newString(vm, "Invalid argument count."));
   }
 
-  vmYieldFiber(vm, (argc == 1) ? &ARG(1) : NULL);
+  vm->vmYieldFiber((argc == 1) ? &ARG(1) : NULL);
 }
 
 DEF(coreToString,
@@ -669,9 +669,9 @@ DEF(coreListJoin,
   for (uint32_t i = 0; i < list->elements.count; i++) {
     String* str = varToString(vm, list->elements.data[i], false);
     if (str == NULL) RET(VAR_NULL);
-    vmPushTempRef(vm, &str->_super); // elem
+    vm->vmPushTempRef(&str->_super); // elem
     pkByteBufferAddString(&buff, vm, str->data, str->length);
-    vmPopTempRef(vm); // elem
+    vm->vmPopTempRef(); // elem
   }
 
   String* str = newStringLength(vm, (const char*)buff.data, buff.count);
@@ -685,9 +685,9 @@ static void initializeBuiltinFN(PKVM* vm, Closure** bfn, const char* name,
   Function* fn = newFunction(vm, name, length, NULL, true, docstring, NULL);
   fn->arity = arity;
   fn->native = ptr;
-  vmPushTempRef(vm, &fn->_super); // fn.
+  vm->vmPushTempRef(&fn->_super); // fn.
   *bfn = newClosure(vm, fn);
-  vmPopTempRef(vm); // fn.
+  vm->vmPopTempRef(); // fn.
 }
 
 static void initializeBuiltinFunctions(PKVM* vm) {
@@ -725,11 +725,11 @@ static void initializeBuiltinFunctions(PKVM* vm) {
 Module* newModuleInternal(PKVM* vm, const char* name) {
 
   String* _name = newString(vm, name);
-  vmPushTempRef(vm, &_name->_super); // _name
+  vm->vmPushTempRef(&_name->_super); // _name
 
   // Check if any module with the same name already exists and assert to the
   // hosting application.
-  if (vmGetModule(vm, _name) != NULL) {
+  if (vm->vmGetModule(_name) != NULL) {
     ASSERT(false, stringFormat(vm,
            "A module named '$' already exists", name)->data);
   }
@@ -737,7 +737,7 @@ Module* newModuleInternal(PKVM* vm, const char* name) {
   Module* module = newModule(vm);
   module->name = _name;
   module->initialized = true;
-  vmPopTempRef(vm); // _name
+  vm->vmPopTempRef(); // _name
 
   initializeModule(vm, module, false);
   return module;
@@ -753,10 +753,10 @@ void moduleAddFunctionInternal(PKVM* vm, Module* module,
   fn->native = fptr;
   fn->arity = arity;
 
-  vmPushTempRef(vm, &fn->_super); // fn.
+  vm->vmPushTempRef(&fn->_super); // fn.
   Closure* closure = newClosure(vm, fn);
   moduleSetGlobal(vm, module, name, (uint32_t)strlen(name), VAR_OBJ(closure));
-  vmPopTempRef(vm); // fn.
+  vm->vmPopTempRef(); // fn.
 }
 
 // 'lang' library methods.
@@ -766,7 +766,7 @@ DEF(stdLangGC,
   "Trigger garbage collection and return the amount of bytes cleaned.") {
 
   size_t bytes_before = vm->bytes_allocated;
-  vmCollectGarbage(vm);
+  vm->vmCollectGarbage();
   size_t garbage = bytes_before - vm->bytes_allocated;
   RET(VAR_NUM((double)garbage));
 }
@@ -827,10 +827,10 @@ DEF(stdLangBackTrace,
   }
 
   // bb.count not including the null byte and which is the length.
-  String* bt = newStringLength(vm, bb.data, bb.count);
-  vmPushTempRef(vm, &bt->_super); // bt.
+  String* bt = newStringLength(vm, (const char*)bb.data, bb.count);
+  vm->vmPushTempRef(&bt->_super); // bt.
   pkByteBufferClear(&bb, vm);
-  vmPopTempRef(vm); // bt.
+  vm->vmPopTempRef(); // bt.
 
   RET(VAR_OBJ(bt));
 }
@@ -840,7 +840,7 @@ DEF(stdLangModules,
   "Returns the list of all registered modules.") {
 
   List* list = newList(vm, 8);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   for (uint32_t i = 0; i < vm->modules->capacity; i++) {
     if (!IS_UNDEF(vm->modules->entries[i].key)) {
       Var entry = vm->modules->entries[i].value;
@@ -853,7 +853,7 @@ DEF(stdLangModules,
       listAppend(vm, list, entry);
     }
   }
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
   RET(VAR_OBJ(list));
 }
 
@@ -872,9 +872,9 @@ static void initializeCoreModules(PKVM* vm) {
 
 #define NEW_MODULE(module, name_string)                \
   Module* module = newModuleInternal(vm, name_string); \
-  vmPushTempRef(vm, &module->_super); /* module */     \
-  vmRegisterModule(vm, module, module->name);          \
-  vmPopTempRef(vm) /* module */
+  vm->vmPushTempRef(&module->_super); /* module */     \
+  vm->vmRegisterModule(module, module->name);          \
+  vm->vmPopTempRef() /* module */
 
   NEW_MODULE(lang, "lang");
   MODULE_ADD_FN(lang, "gc", stdLangGC, 0);
@@ -932,11 +932,11 @@ static void _ctorString(PKVM* vm) {
 
 static void _ctorList(PKVM* vm) {
   List* list = newList(vm, ARGC);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   for (int i = 0; i < ARGC; i++) {
     listAppend(vm, list, ARG(i + 1));
   }
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
   RET(VAR_OBJ(list));
 }
 
@@ -989,7 +989,7 @@ DEF(_numberTimes,
 
   for (int64_t i = 0; i < n; i++) {
     Var _i = VAR_NUM((double)i);
-    PkResult result = vmCallFunction(vm, closure, 1, &_i, NULL);
+    PkResult result = vm->vmCallFunction(closure, 1, &_i, NULL);
     if (result != PK_RESULT_SUCCESS) break;
   }
 
@@ -1300,7 +1300,7 @@ DEF(_methodBindBind,
 
   // We can only bind the method if the instance has that method.
   String* method_name = newString(vm, self->method->fn->name);
-  vmPushTempRef(vm, &method_name->_super); // method_name.
+  vm->vmPushTempRef(&method_name->_super); // method_name.
 
   Var instance = ARG(1);
 
@@ -1313,7 +1313,7 @@ DEF(_methodBindBind,
   }
 
   self->instance = instance;
-  vmPopTempRef(vm); // method_name.
+  vm->vmPopTempRef(); // method_name.
 
   RET(SELF);
 }
@@ -1325,17 +1325,17 @@ DEF(_classMethods,
   Class* self = (Class*) AS_OBJ(SELF);
 
   List* list = newList(vm, self->methods.count);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   for (int i = 0; i < (int) self->methods.count; i++) {
     Closure* method = self->methods.data[i];
     ASSERT(method->fn->name, OOPS);
     if (method->fn->name[0] == SPECIAL_NAME_CHAR) continue;
     MethodBind* mb = newMethodBind(vm, method);
-    vmPushTempRef(vm, &mb->_super); // mb.
+    vm->vmPushTempRef(&mb->_super); // mb.
     listAppend(vm, list, VAR_OBJ(mb));
-    vmPopTempRef(vm); // mb.
+    vm->vmPopTempRef(); // mb.
   }
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
 
   RET(VAR_OBJ(list));
 
@@ -1349,7 +1349,7 @@ DEF(_moduleGlobals,
   Module* self = (Module*) AS_OBJ(SELF);
 
   List* list = newList(vm, self->globals.count);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   for (int i = 0; i < (int) self->globals.count; i++) {
     if (moduleGetStringAt(self,
       self->global_names.data[i])->data[0] == SPECIAL_NAME_CHAR) {
@@ -1357,7 +1357,7 @@ DEF(_moduleGlobals,
     }
     listAppend(vm, list, self->globals.data[i]);
   }
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
 
   RET(VAR_OBJ(list));
 }
@@ -1373,7 +1373,7 @@ DEF(_fiberRun,
   // Switch fiber and start execution. New fibers are marked as running in
   // either it's stats running with vmRunFiber() or here -- inserting a
   // fiber over a running (callee) fiber.
-  if (vmPrepareFiber(vm, self, ARGC, &ARG(1))) {
+  if (vm->vmPrepareFiber(self, ARGC, &ARG(1))) {
     self->caller = vm->fiber;
     vm->fiber = self;
     self->state = FIBER_RUNNING;
@@ -1393,7 +1393,7 @@ DEF(_fiberResume,
   Var value = (ARGC == 1) ? ARG(1) : VAR_NULL;
 
   // Switch fiber and resume execution.
-  if (vmSwitchFiber(vm, self, &value)) {
+  if (vm->vmSwitchFiber(self, &value)) {
     self->state = FIBER_RUNNING;
   }
 }
@@ -1421,9 +1421,9 @@ static void initializePrimitiveClasses(PKVM* vm) {
                                NULL, true, NULL, NULL);      \
     fn->native = ptr;                                        \
     fn->arity = arity_;                                      \
-    vmPushTempRef(vm, &fn->_super); /* fn. */                \
+    vm->vmPushTempRef(&fn->_super); /* fn. */                \
     vm->builtin_classes[type]->ctor = newClosure(vm, fn);    \
-    vmPopTempRef(vm); /* fn. */                              \
+    vm->vmPopTempRef(); /* fn. */                              \
   } while (false)
 
   ADD_CTOR(PK_NULL,   "@ctorNull",   _ctorNull,    0);
@@ -1443,10 +1443,10 @@ static void initializePrimitiveClasses(PKVM* vm) {
     fn->is_method = true;                                         \
     fn->native = ptr;                                             \
     fn->arity = arity_;                                           \
-    vmPushTempRef(vm, &fn->_super); /* fn. */                     \
+    vm->vmPushTempRef(&fn->_super); /* fn. */                     \
     pkClosureBufferWrite(&vm->builtin_classes[type]->methods,     \
                          vm, newClosure(vm, fn));                 \
-    vmPopTempRef(vm); /* fn. */                                   \
+    vm->vmPopTempRef(); /* fn. */                                   \
   } while (false)
 
   // TODO: write docs.
@@ -2135,13 +2135,13 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
         Closure* getter;
         // TODO: static vm string?
         String* getter_name = newString(vm, GETTER_NAME);
-        vmPushTempRef(vm, &getter_name->_super); // getter_name.
+        vm->vmPushTempRef(&getter_name->_super); // getter_name.
         bool has_getter = hasMethod(vm, on, getter_name, &getter);
-        vmPopTempRef(vm); // getter_name.
+        vm->vmPopTempRef(); // getter_name.
 
         if (has_getter) {
           Var attrib_name = VAR_OBJ(attrib);
-          vmCallMethod(vm, on, getter, 1, &attrib_name, &value);
+          vm->vmCallMethod(on, getter, 1, &attrib_name, &value);
           return value; // If any error occure, it was already set.
         }
       }
@@ -2203,9 +2203,9 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
         Closure* setter;
         // TODO: static vm string?
         String* setter_name = newString(vm, SETTER_NAME);
-        vmPushTempRef(vm, &setter_name->_super); // setter_name.
+        vm->vmPushTempRef(&setter_name->_super); // setter_name.
         bool has_setter = hasMethod(vm, VAR_OBJ(inst), setter_name, &setter);
-        vmPopTempRef(vm); // setter_name.
+        vm->vmPopTempRef(); // setter_name.
 
         if (has_setter) {
 
@@ -2215,7 +2215,7 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
           // array as bellow.
           Var args[2] = { VAR_OBJ(attrib), value };
 
-          vmCallMethod(vm, VAR_OBJ(inst), setter, 2, args, NULL);
+          vm->vmCallMethod(VAR_OBJ(inst), setter, 2, args, NULL);
           return; // If any error occure, it was already set.
         }
       }
@@ -2320,14 +2320,14 @@ static List* _sliceList(PKVM* vm, List* list, Range* range) {
   }
 
   List* slice = newList(vm, length);
-  vmPushTempRef(vm, &slice->_super); // slice.
+  vm->vmPushTempRef(&slice->_super); // slice.
 
   for (int32_t i = 0; i < length; i++) {
     int32_t ind = (reversed) ? start + length - 1 - i : start + i;
     listAppend(vm, slice, list->elements.data[ind]);
   }
 
-  vmPopTempRef(vm); // slice.
+  vm->vmPopTempRef(); // slice.
   return slice;
 }
 
@@ -2396,9 +2396,9 @@ Var varGetSubscript(PKVM* vm, Var on, Var key) {
                                         varTypeName(key)));
         } else {
           String* key_repr = varToString(vm, key, true);
-          vmPushTempRef(vm, &key_repr->_super); // key_repr.
+          vm->vmPushTempRef(&key_repr->_super); // key_repr.
           VM_SET_ERROR(vm, stringFormat(vm, "Key '@' not exists", key_repr));
-          vmPopTempRef(vm); // key_repr.
+          vm->vmPopTempRef(); // key_repr.
         }
         return VAR_NULL;
       }
@@ -2468,13 +2468,13 @@ void varsetSubscript(PKVM* vm, Var on, Var key, Var value) {
 
       Closure* closure = NULL;
       String* name = newString(vm, "[]=");
-      vmPushTempRef(vm, &name->_super); // name.
+      vm->vmPushTempRef(&name->_super); // name.
       bool has_method = hasMethod(vm, on, name, &closure);
-      vmPopTempRef(vm); // name.
+      vm->vmPopTempRef(); // name.
 
       if (has_method) {
         Var args[2] = { key, value };
-        vmCallMethod(vm, on, closure, 2, args, NULL);
+        vm->vmCallMethod(on, closure, 2, args, NULL);
         return;
       }
 

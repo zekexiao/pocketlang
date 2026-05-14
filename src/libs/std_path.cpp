@@ -130,7 +130,7 @@ static char* tryImportPaths(PKVM* vm, char* path, char* buff) {
 
   char* ret = NULL;
   if (path_size != 0) {
-    ret = pkRealloc(vm, NULL, path_size + 1);
+    ret = (char*)pkRealloc(vm, NULL, path_size + 1);
     memcpy(ret, buff, path_size + 1);
   }
   return ret;
