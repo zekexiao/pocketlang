@@ -80,8 +80,10 @@ typedef struct PKVM PKVM;
 // till it's released with pkReleaseHandle().
 typedef struct PkHandle PkHandle;
 
+#ifndef __cplusplus
 typedef enum PkVarType PkVarType;
 typedef enum PkResult PkResult;
+#endif
 typedef struct PkConfiguration PkConfiguration;
 
 // C function pointer which is callable from pocketLang by native module
