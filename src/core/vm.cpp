@@ -12,7 +12,8 @@
 #include "debug.h"
 #endif
 
-PkHandle* vmNewHandle(PKVM* vm, Var value) {
+PkHandle* PKVM::vmNewHandle(Var value) {
+  PKVM* vm = this;
   PkHandle* handle = (PkHandle*)ALLOCATE(vm, PkHandle);
   handle->value = value;
   handle->prev = NULL;
@@ -22,7 +23,8 @@ PkHandle* vmNewHandle(PKVM* vm, Var value) {
   return handle;
 }
 
-void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size) {
+void* PKVM::vmRealloc(void* memory, size_t old_size, size_t new_size) {
+  PKVM* vm = this;
 
   // Track the total allocated memory of the VM to trigger the GC.
   // if vmRealloc is called for freeing, the old_size would be 0 since
@@ -43,27 +45,30 @@ void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size) {
   if (new_size > 0 && vm->bytes_allocated > vm->next_gc) {
     ASSERT(vm->collecting_garbage == false, OOPS);
     vm->collecting_garbage = true;
-    vmCollectGarbage(vm);
+    vm->vmCollectGarbage();
     vm->collecting_garbage = false;
   }
 
   return vm->config.realloc_fn(memory, new_size, vm->config.user_data);
 }
 
-void vmPushTempRef(PKVM* vm, Object* obj) {
+void PKVM::vmPushTempRef(Object* obj) {
+  PKVM* vm = this;
   ASSERT(obj != NULL, "Cannot reference to NULL.");
   ASSERT(vm->temp_reference_count < MAX_TEMP_REFERENCE,
     "Too many temp references");
   vm->temp_reference[vm->temp_reference_count++] = obj;
 }
 
-void vmPopTempRef(PKVM* vm) {
+void PKVM::vmPopTempRef() {
+  PKVM* vm = this;
   ASSERT(vm->temp_reference_count > 0,
          "Temporary reference is empty to pop.");
   vm->temp_reference_count--;
 }
 
-void vmRegisterModule(PKVM* vm, Module* module, String* key) {
+void PKVM::vmRegisterModule(Module* module, String* key) {
+  PKVM* vm = this;
   ASSERT((((module->name != NULL) && IS_STR_EQ(module->name, key)) ||
          IS_STR_EQ(module->path, key)), OOPS);
   // FIXME:
@@ -72,14 +77,16 @@ void vmRegisterModule(PKVM* vm, Module* module, String* key) {
   mapSet(vm, vm->modules, VAR_OBJ(key), VAR_OBJ(module));
 }
 
-Module* vmGetModule(PKVM* vm, String* key) {
+Module* PKVM::vmGetModule(String* key) {
+  PKVM* vm = this;
   Var module = mapGet(vm->modules, VAR_OBJ(key));
   if (IS_UNDEF(module)) return NULL;
   ASSERT(AS_OBJ(module)->type == OBJ_MODULE, OOPS);
   return (Module*)AS_OBJ(module);
 }
 
-void vmCollectGarbage(PKVM* vm) {
+void PKVM::vmCollectGarbage() {
+  PKVM* vm = this;
 
   // Mark builtin functions.
   for (int i = 0; i < vm->builtins_count; i++) {
@@ -174,7 +181,8 @@ void vmCollectGarbage(PKVM* vm) {
     return false;                                  \
   } while (false)
 
-bool vmPrepareFiber(PKVM* vm, Fiber* fiber, int argc, Var* argv) {
+bool PKVM::vmPrepareFiber(Fiber* fiber, int argc, Var* argv) {
+  PKVM* vm = this;
   ASSERT(fiber->closure->fn->arity >= -1,
          OOPS " (Forget to initialize arity.)");
 
@@ -202,7 +210,7 @@ bool vmPrepareFiber(PKVM* vm, Fiber* fiber, int argc, Var* argv) {
   ASSERT(fiber->stack != NULL && fiber->sp == fiber->stack + 1, OOPS);
   ASSERT(fiber->ret == fiber->stack, OOPS);
 
-  vmEnsureStackSize(vm, fiber, (int) (fiber->sp - fiber->stack) + argc);
+  vm->vmEnsureStackSize(fiber, (int) (fiber->sp - fiber->stack) + argc);
   ASSERT((fiber->stack + fiber->stack_size) - fiber->sp >= argc, OOPS);
 
   // Pass the function arguments.
@@ -230,7 +238,8 @@ bool vmPrepareFiber(PKVM* vm, Fiber* fiber, int argc, Var* argv) {
   return true;
 }
 
-bool vmSwitchFiber(PKVM* vm, Fiber* fiber, Var* value) {
+bool PKVM::vmSwitchFiber(Fiber* fiber, Var* value) {
+  PKVM* vm = this;
   if (fiber->state != FIBER_YIELDED) {
     switch (fiber->state) {
       case FIBER_NEW:
@@ -266,7 +275,8 @@ bool vmSwitchFiber(PKVM* vm, Fiber* fiber, Var* value) {
 
 #undef _ERR_FAIL
 
-void vmYieldFiber(PKVM* vm, Var* value) {
+void PKVM::vmYieldFiber(Var* value) {
+  PKVM* vm = this;
 
   Fiber* caller = vm->fiber->caller;
 
@@ -282,26 +292,27 @@ void vmYieldFiber(PKVM* vm, Var* value) {
   vm->fiber = caller;
 }
 
-PkResult vmCallMethod(PKVM* vm, Var self, Closure* fn,
-                      int argc, Var* argv, Var* ret) {
+PkResult PKVM::vmCallMethod(Var self, Closure* fn,
+                              int argc, Var* argv, Var* ret) {
+  PKVM* vm = this;
   ASSERT(argc >= 0, "argc cannot be negative.");
   ASSERT(argc == 0 || argv != NULL, "argv was NULL when argc > 0.");
 
   Fiber* fiber = newFiber(vm, fn);
   fiber->self = self;
   fiber->native = vm->fiber;
-  vmPushTempRef(vm, &fiber->_super); // fiber.
-  bool success = vmPrepareFiber(vm, fiber, argc, argv);
+  vm->vmPushTempRef(&fiber->_super); // fiber.
+  bool success = vm->vmPrepareFiber(fiber, argc, argv);
 
   if (!success) {
-    vmPopTempRef(vm); // fiber.
+    vm->vmPopTempRef(); // fiber.
     return PK_RESULT_RUNTIME_ERROR;
   }
 
   PkResult result;
 
   Fiber* last = vm->fiber;
-  if (last != NULL) vmPushTempRef(vm, &last->_super); // last.
+  if (last != NULL) vm->vmPushTempRef(&last->_super); // last.
   {
     if (fiber->closure->fn->is_native) {
 
@@ -316,12 +327,12 @@ PkResult vmCallMethod(PKVM* vm, Var self, Closure* fn,
       }
 
     } else {
-      result = vmRunFiber(vm, fiber);
+      result = vm->vmRunFiber(fiber);
     }
   }
 
-  if (last != NULL) vmPopTempRef(vm); // last.
-  vmPopTempRef(vm); // fiber.
+  if (last != NULL) vm->vmPopTempRef(); // last.
+  vm->vmPopTempRef(); // fiber.
 
   vm->fiber = last;
 
@@ -330,11 +341,12 @@ PkResult vmCallMethod(PKVM* vm, Var self, Closure* fn,
   return result;
 }
 
-PkResult vmCallFunction(PKVM* vm, Closure* fn, int argc, Var* argv, Var* ret) {
+PkResult PKVM::vmCallFunction(Closure* fn, int argc, Var* argv, Var* ret) {
+  PKVM* vm = this;
 
   // Calling functions and methods are the same, except for the methods have
   // self defined, and for functions it'll be VAR_UNDEFINED.
-  return vmCallMethod(vm, VAR_UNDEFINED, fn, argc, argv, ret);
+  return vm->vmCallMethod(VAR_UNDEFINED, fn, argc, argv, ret);
 }
 
 #ifndef PK_NO_DL
@@ -394,13 +406,14 @@ static Module* _importDL(PKVM* vm, String* resolved, String* name) {
   module->name = name;
   module->path = resolved;
   module->handle = handle;
-  vmRegisterModule(vm, module, resolved);
+  vm->vmRegisterModule(module, resolved);
 
   pkReleaseHandle(vm, pkhandle);
   return module;
 }
 
-void vmUnloadDlHandle(PKVM* vm, void* handle) {
+void PKVM::vmUnloadDlHandle(void* handle) {
+  PKVM* vm = this;
   if (handle && vm->config.unload_dl_fn)
     vm->config.unload_dl_fn(vm, handle);
 }
@@ -423,20 +436,20 @@ static Module* _importScript(PKVM* vm, String* resolved, String* name) {
   module->path = resolved;
   module->name = name;
 
-  vmPushTempRef(vm, &module->_super); // module.
+  vm->vmPushTempRef(&module->_super); // module.
   {
     initializeModule(vm, module, false);
     PkResult result = compile(vm, module, source, NULL);
     pkRealloc(vm, source, 0);
     if (result == PK_RESULT_SUCCESS) {
-      vmRegisterModule(vm, module, resolved);
+      vm->vmRegisterModule(module, resolved);
     } else {
       VM_SET_ERROR(vm, stringFormat(vm, "Error compiling module at \"@\"",
                    resolved));
       module = NULL; //< set to null to indicate error.
     }
   }
-  vmPopTempRef(vm); // module.
+  vm->vmPopTempRef(); // module.
 
   return module;
 }
@@ -444,7 +457,8 @@ static Module* _importScript(PKVM* vm, String* resolved, String* name) {
 // Import and return the Module object with the [path] string. If the path
 // starts with with './' or '../' we'll only try relative imports, otherwise
 // we'll search native modules first and then at relative path.
-Var vmImportModule(PKVM* vm, String* from, String* path) {
+Var PKVM::vmImportModule(String* from, String* path) {
+  PKVM* vm = this;
   ASSERT((path != NULL) && (path->length > 0), OOPS);
 
   bool is_relative = path->data[0] == '.';
@@ -513,7 +527,7 @@ Var vmImportModule(PKVM* vm, String* from, String* path) {
 
   Module* module = NULL;
 
-  vmPushTempRef(vm, &resolved->_super); // resolved.
+  vm->vmPushTempRef(&resolved->_super); // resolved.
   {
     // FIXME:
     // stringReplace() function expect 2 strings old, and new to replace but
@@ -529,7 +543,7 @@ Var vmImportModule(PKVM* vm, String* from, String* path) {
       if (*c == '/') *c = '.';
     }
     _name->hash = utilHashString(_name->data);
-    vmPushTempRef(vm, &_name->_super); // _name.
+    vm->vmPushTempRef(&_name->_super); // _name.
 
     #ifndef PK_NO_DL
     if (isdl) module = _importDL(vm, resolved, _name);
@@ -537,9 +551,9 @@ Var vmImportModule(PKVM* vm, String* from, String* path) {
     #endif
     module = _importScript(vm, resolved, _name);
 
-    vmPopTempRef(vm); // _name.
+    vm->vmPopTempRef(); // _name.
   }
-  vmPopTempRef(vm); // resolved.
+  vm->vmPopTempRef(); // resolved.
 
   if (module == NULL) {
     ASSERT(VM_HAS_ERROR(vm), OOPS);
@@ -549,7 +563,8 @@ Var vmImportModule(PKVM* vm, String* from, String* path) {
   return VAR_OBJ(module);
 }
 
-void vmEnsureStackSize(PKVM* vm, Fiber* fiber, int size) {
+void PKVM::vmEnsureStackSize(Fiber* fiber, int size) {
+  PKVM* vm = this;
 
   if (size >= (MAX_STACK_SIZE / sizeof(Var))) {
     VM_SET_ERROR(vm, newString(vm, "Maximum stack limit reached."));
@@ -561,7 +576,7 @@ void vmEnsureStackSize(PKVM* vm, Fiber* fiber, int size) {
   int new_size = utilPowerOf2Ceil(size);
 
   Var* old_rbp = fiber->stack; //< Old stack base pointer.
-  fiber->stack = (Var*)vmRealloc(vm, fiber->stack,
+  fiber->stack = (Var*)vm->vmRealloc(fiber->stack,
                                  sizeof(Var) * fiber->stack_size,
                                  sizeof(Var) * new_size);
   fiber->stack_size = new_size;
@@ -613,7 +628,7 @@ static inline void pushCallFrame(PKVM* vm, const Closure* closure) {
     int new_capacity = vm->fiber->frame_capacity << 1;
     if (new_capacity == 0) new_capacity = 1;
 
-    vm->fiber->frames = (CallFrame*)vmRealloc(vm, vm->fiber->frames,
+    vm->fiber->frames = (CallFrame*)vm->vmRealloc(vm->fiber->frames,
                            sizeof(CallFrame) * vm->fiber->frame_capacity,
                            sizeof(CallFrame) * new_capacity);
     vm->fiber->frame_capacity = new_capacity;
@@ -622,7 +637,7 @@ static inline void pushCallFrame(PKVM* vm, const Closure* closure) {
   // Grow the stack if needed.
   int current_stack_slots = (int)(vm->fiber->sp - vm->fiber->stack) + 1;
   int needed = closure->fn->fn->stack_size + current_stack_slots;
-  vmEnsureStackSize(vm, vm->fiber, needed);
+  vm->vmEnsureStackSize(vm->fiber, needed);
 
   CallFrame* frame = vm->fiber->frames + vm->fiber->frame_count++;
   frame->rbp = vm->fiber->ret;
@@ -665,7 +680,7 @@ static inline void reuseCallFrame(PKVM* vm, const Closure* closure) {
   // Grow the stack if needed (least probably).
   int needed = (closure->fn->fn->stack_size +
                 (int)(vm->fiber->sp - vm->fiber->stack));
-  vmEnsureStackSize(vm, vm->fiber, needed);
+  vm->vmEnsureStackSize(vm->fiber, needed);
 }
 
 // Capture the [local] into an upvalue and return it. If the upvalue already
@@ -754,7 +769,8 @@ static void closeUpvalues(Fiber* fiber, Var* top) {
   }
 }
 
-static void vmReportError(PKVM* vm) {
+void PKVM::vmReportError() {
+  PKVM* vm = this;
   ASSERT(VM_HAS_ERROR(vm), "runtimeError() should be called after an error.");
 
   // TODO: pass the error to the caller of the fiber.
@@ -767,7 +783,8 @@ static void vmReportError(PKVM* vm) {
  * RUNTIME                                                                    *
  *****************************************************************************/
 
-PkResult vmRunFiber(PKVM* vm, Fiber* fiber_) {
+PkResult PKVM::vmRunFiber(Fiber* fiber_) {
+  PKVM* vm = this;
 
   // Set the fiber as the VM's current fiber (another root object) to prevent
   // it from garbage collection and get the reference from native functions.
@@ -779,13 +796,13 @@ PkResult vmRunFiber(PKVM* vm, Fiber* fiber_) {
   fiber_->state = FIBER_RUNNING;
 
   // The instruction pointer.
-  register const uint8_t* ip;
+  const uint8_t* ip;
 
-  register Var* rbp;         //< Stack base pointer register.
-  register Var* self;        //< Points to the self in the current call frame.
-  register CallFrame* frame; //< Current call frame.
-  register Module* module;   //< Currently executing module.
-  register Fiber* fiber = fiber_;
+  Var* rbp;         //< Stack base pointer register.
+  Var* self;        //< Points to the self in the current call frame.
+  CallFrame* frame; //< Current call frame.
+  Module* module;   //< Currently executing module.
+  Fiber* fiber = fiber_;
 
 #if DEBUG
   #define PUSH(value)                                                       \
@@ -821,7 +838,7 @@ PkResult vmRunFiber(PKVM* vm, Fiber* fiber_) {
   do {                                \
     if (VM_HAS_ERROR(vm)) {           \
       UPDATE_FRAME();                 \
-      vmReportError(vm);              \
+      vm->vmReportError();              \
       FIBER_SWITCH_BACK();            \
       return PK_RESULT_RUNTIME_ERROR; \
     }                                 \
@@ -832,7 +849,7 @@ PkResult vmRunFiber(PKVM* vm, Fiber* fiber_) {
   do {                               \
     VM_SET_ERROR(vm, err_msg);       \
     UPDATE_FRAME();                  \
-    vmReportError(vm);               \
+    vm->vmReportError();               \
     FIBER_SWITCH_BACK();             \
     return PK_RESULT_RUNTIME_ERROR;  \
   } while (false)
@@ -1069,7 +1086,7 @@ L_vm_main_loop:
       Function* fn = (Function*)AS_OBJ(module->constants.data[index]);
 
       Closure* closure = newClosure(vm, fn);
-      vmPushTempRef(vm, &closure->_super); // closure.
+      vm->vmPushTempRef(&closure->_super); // closure.
 
       // Capture the vaupes.
       for (int i = 0; i < fn->upvalue_count; i++) {
@@ -1086,7 +1103,7 @@ L_vm_main_loop:
       }
 
       PUSH(VAR_OBJ(closure));
-      vmPopTempRef(vm); // closure.
+      vm->vmPopTempRef(); // closure.
 
       DISPATCH();
     }
@@ -1153,7 +1170,7 @@ L_vm_main_loop:
       String* name = moduleGetStringAt(module, (int)index);
       ASSERT(name != NULL, OOPS);
 
-      Var _imported = vmImportModule(vm, module->path, name);
+      Var _imported = vm->vmImportModule(module->path, name);
       CHECK_ERROR();
       ASSERT(IS_OBJ_TYPE(_imported, OBJ_MODULE), OOPS);
 
@@ -1193,6 +1210,7 @@ L_vm_main_loop:
       String* name; //< The method name.
 
     OPCODE(SUPER_CALL):
+      {
         argc = READ_BYTE();
         fiber->ret = (fiber->sp - argc - 1);
         fiber->self = *fiber->ret; //< Self for the next call.
@@ -1201,6 +1219,7 @@ L_vm_main_loop:
         Closure* super_method = getSuperMethod(vm, fiber->self, name);
         CHECK_ERROR(); // Will return if super_method is NULL.
         callable = VAR_OBJ(super_method);
+      }
       goto L_do_call;
 
     OPCODE(METHOD_CALL):

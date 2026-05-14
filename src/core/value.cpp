@@ -52,7 +52,7 @@ void pkByteBufferAddStringFmt(pkByteBuffer* self, PKVM* vm,
   va_end(copy);
 
   pkByteBufferReserve(self, vm, self->count + (size_t) length + 1);
-  vsnprintf(self->data + self->count, self->capacity - self->count, fmt, args);
+  vsnprintf((char*)self->data + self->count, self->capacity - self->count, fmt, args);
   self->count += length;
   va_end(args);
 }
@@ -322,14 +322,14 @@ String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args) {
 
 List* newList(PKVM* vm, uint32_t size) {
   List* list = ALLOCATE(vm, List);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   varInitObject(&list->_super, vm, OBJ_LIST);
   pkVarBufferInit(&list->elements);
   if (size > 0) {
     pkVarBufferFill(&list->elements, vm, VAR_NULL, size);
     list->elements.count = 0;
   }
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
   return list;
 }
 
@@ -371,7 +371,7 @@ Function* newFunction(PKVM* vm, const char* name, int length,
   memset(func, 0, sizeof(Function));
   varInitObject(&func->_super, vm, OBJ_FUNC);
 
-  vmPushTempRef(vm, &func->_super); // func
+  vm->vmPushTempRef(&func->_super); // func
 
   func->owner = owner;
   func->is_native = is_native;
@@ -404,7 +404,7 @@ Function* newFunction(PKVM* vm, const char* name, int length,
     }
   }
 
-  vmPopTempRef(vm); // func
+  vm->vmPopTempRef(); // func
   return func;
 }
 
@@ -451,7 +451,7 @@ Fiber* newFiber(PKVM* vm, Closure* closure) {
 
   varInitObject(&fiber->_super, vm, OBJ_FIBER);
 
-  vmPushTempRef(vm, &fiber->_super); // fiber.
+  vm->vmPushTempRef(&fiber->_super); // fiber.
 
   fiber->state = FIBER_NEW;
   fiber->closure = closure;
@@ -500,7 +500,7 @@ Fiber* newFiber(PKVM* vm, Closure* closure) {
   // but if we're trying to debut it may crash when dumping the return value).
   *fiber->ret = VAR_NULL;
 
-  vmPopTempRef(vm); // fiber.
+  vm->vmPopTempRef(); // fiber.
 
   return fiber;
 }
@@ -518,7 +518,7 @@ Class* newClass(PKVM* vm, const char* name, int length,
 
   varInitObject(&cls->_super, vm, OBJ_CLASS);
 
-  vmPushTempRef(vm, &cls->_super); // class.
+  vm->vmPushTempRef(&cls->_super); // class.
 
   pkClosureBufferInit(&cls->methods);
   cls->static_attribs = newMap(vm);
@@ -537,7 +537,7 @@ Class* newClass(PKVM* vm, const char* name, int length,
     cls->name = newStringLength(vm, name, (uint32_t)length);
   }
 
-  vmPopTempRef(vm); // class.
+  vm->vmPopTempRef(); // class.
   return cls;
 }
 
@@ -550,7 +550,7 @@ Instance* newInstance(PKVM* vm, Class* cls) {
   memset(inst, 0, sizeof(Instance));
   varInitObject(&inst->_super, vm, OBJ_INST);
 
-  vmPushTempRef(vm, &inst->_super); // inst.
+  vm->vmPushTempRef(&inst->_super); // inst.
 
   inst->cls = cls;
   if (cls->new_fn != NULL) {
@@ -561,7 +561,7 @@ Instance* newInstance(PKVM* vm, Class* cls) {
 
   inst->attribs = newMap(vm);
 
-  vmPopTempRef(vm); // inst.
+  vm->vmPopTempRef(); // inst.
   return inst;
 }
 
@@ -569,11 +569,11 @@ List* rangeAsList(PKVM* vm, Range* self) {
 
   if (self->from < self->to) {
     List* list = newList(vm, (uint32_t)(self->to - self->from));
-    vmPushTempRef(vm, &list->_super); // list.
+    vm->vmPushTempRef(&list->_super); // list.
     for (double i = self->from; i < self->to; i++) {
       pkVarBufferWrite(&list->elements, vm, VAR_NUM(i));
     }
-    vmPopTempRef(vm); // list.
+    vm->vmPopTempRef(); // list.
 
     return list;
   }
@@ -754,7 +754,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
   const char* s = self->data; // Current position in self.
 
   List* list = newList(vm, 0);
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   do {
     const char* match = strstr(s, sep->data);
     if (match == NULL) {
@@ -768,23 +768,23 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
       } else {
         String* tail = newStringLength(vm, s,
           (uint32_t)(self->length - (s - self->data)));
-        vmPushTempRef(vm, &tail->_super); // tail.
+        vm->vmPushTempRef(&tail->_super); // tail.
         listAppend(vm, list, VAR_OBJ(tail));
-        vmPopTempRef(vm); // tail.
+        vm->vmPopTempRef(); // tail.
       }
 
       break; // We're done.
     }
 
     String* split = newStringLength(vm, s, (uint32_t)(match - s));
-    vmPushTempRef(vm, &split->_super); // split.
+    vm->vmPushTempRef(&split->_super); // split.
     listAppend(vm, list, VAR_OBJ(split));
-    vmPopTempRef(vm); // split.
+    vm->vmPopTempRef(); // split.
 
     s = match + sep->length;
 
   } while (true);
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
 
   return list;
 }
@@ -865,9 +865,9 @@ String* stringJoin(PKVM* vm, String* str1, String* str2) {
 void listInsert(PKVM* vm, List* self, uint32_t index, Var value) {
 
   // Add an empty slot at the end of the buffer.
-  if (IS_OBJ(value)) vmPushTempRef(vm, AS_OBJ(value));
+  if (IS_OBJ(value)) vm->vmPushTempRef(AS_OBJ(value));
   pkVarBufferWrite(&self->elements, vm, VAR_NULL);
-  if (IS_OBJ(value)) vmPopTempRef(vm);
+  if (IS_OBJ(value)) vm->vmPopTempRef();
 
   // Shift the existing elements down.
   for (uint32_t i = self->elements.count - 1; i > index; i--) {
@@ -882,7 +882,7 @@ Var listRemoveAt(PKVM* vm, List* self, uint32_t index) {
   ASSERT_INDEX(index, self->elements.count);
 
   Var removed = self->elements.data[index];
-  if (IS_OBJ(removed)) vmPushTempRef(vm, AS_OBJ(removed));
+  if (IS_OBJ(removed)) vm->vmPushTempRef(AS_OBJ(removed));
 
   // Shift the rest of the elements up.
   for (uint32_t i = index; i < self->elements.count - 1; i++) {
@@ -891,13 +891,13 @@ Var listRemoveAt(PKVM* vm, List* self, uint32_t index) {
 
   // Shrink the size if it's too much excess.
   if (self->elements.capacity / GROW_FACTOR >= self->elements.count) {
-    self->elements.data = (Var*) vmRealloc(vm, self->elements.data,
+    self->elements.data = (Var*) vm->vmRealloc(self->elements.data,
       sizeof(Var) * self->elements.capacity,
       sizeof(Var) * self->elements.capacity / GROW_FACTOR);
     self->elements.capacity /= GROW_FACTOR;
   }
 
-  if (IS_OBJ(removed)) vmPopTempRef(vm);
+  if (IS_OBJ(removed)) vm->vmPopTempRef();
 
   self->elements.count--;
   return removed;
@@ -916,10 +916,10 @@ List* listAdd(PKVM* vm, List* l1, List* l2) {
   uint32_t size = l1->elements.count + l2->elements.count;
   List* list = newList(vm, size);
 
-  vmPushTempRef(vm, &list->_super); // list.
+  vm->vmPushTempRef(&list->_super); // list.
   pkVarBufferConcat(&list->elements, vm, &l1->elements);
   pkVarBufferConcat(&list->elements, vm, &l2->elements);
-  vmPopTempRef(vm); // list.
+  vm->vmPopTempRef(); // list.
 
   return list;
 }
@@ -1099,7 +1099,7 @@ Var mapRemoveKey(PKVM* vm, Map* self, Var key) {
 
   self->count--;
 
-  if (IS_OBJ(value)) vmPushTempRef(vm, AS_OBJ(value));
+  if (IS_OBJ(value)) vm->vmPushTempRef(AS_OBJ(value));
 
   if (self->count == 0) {
     // Clear the map if it's empty.
@@ -1121,7 +1121,7 @@ Var mapRemoveKey(PKVM* vm, Map* self, Var key) {
     _mapResize(vm, self, capacity);
   }
 
-  if (IS_OBJ(value)) vmPopTempRef(vm);
+  if (IS_OBJ(value)) vm->vmPopTempRef();
 
   return value;
 }
@@ -1170,7 +1170,7 @@ void freeObject(PKVM* vm, Object* self) {
       pkUintBufferClear(&module->global_names, vm);
       pkVarBufferClear(&module->constants, vm);
       #ifndef PK_NO_DL
-      if (module->handle) vmUnloadDlHandle(vm, module->handle);
+      if (module->handle) vm->vmUnloadDlHandle(module->handle);
       #endif
       DEALLOCATE(vm, self, Module);
       return;
@@ -1257,9 +1257,9 @@ String* moduleAddString(Module* module, PKVM* vm, const char* name,
   // If we reach here the name doesn't exists in the buffer, so add it and
   // return the index.
   String* new_name = newStringLength(vm, name, length);
-  vmPushTempRef(vm, &new_name->_super); // new_name
+  vm->vmPushTempRef(&new_name->_super); // new_name
   pkVarBufferWrite(&module->constants, vm, VAR_OBJ(new_name));
-  vmPopTempRef(vm); // new_name
+  vm->vmPopTempRef(); // new_name
   if (index) *index = module->constants.count - 1;
   return new_name;
 }
@@ -1317,9 +1317,9 @@ void moduleAddMain(PKVM* vm, Module* module) {
                                   module, false, NULL/*TODO*/, NULL);
   body_fn->arity = 0;
 
-  vmPushTempRef(vm, &body_fn->_super); // body_fn.
+  vm->vmPushTempRef(&body_fn->_super); // body_fn.
   module->body = newClosure(vm, body_fn);
-  vmPopTempRef(vm); // body_fn.
+  vm->vmPopTempRef(); // body_fn.
 
   moduleSetGlobal(vm, module,
                   IMPLICIT_MAIN_NAME, (uint32_t)strlen(IMPLICIT_MAIN_NAME),

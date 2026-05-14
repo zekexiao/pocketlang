@@ -15,7 +15,7 @@ typedef struct {
 } Dummy;
 
 void* _newDummy(PKVM* vm) {
-  Dummy* dummy = pkRealloc(vm, NULL, sizeof(Dummy));
+  Dummy* dummy = (Dummy*)pkRealloc(vm, NULL, sizeof(Dummy));
   ASSERT(dummy != NULL, "pkRealloc failed.");
   dummy->val = 0;
   return dummy;

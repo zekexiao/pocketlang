@@ -700,11 +700,11 @@ static bool _read_event(term_Event* event) {
       event->key.ascii = ker->uChar.AsciiChar;
 
       if ((ker->dwControlKeyState & LEFT_ALT_PRESSED) || (ker->dwControlKeyState & RIGHT_ALT_PRESSED))
-        event->key.modifiers |= TERM_MD_ALT;
+        event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_ALT);
       if ((ker->dwControlKeyState & LEFT_CTRL_PRESSED) || (ker->dwControlKeyState & RIGHT_CTRL_PRESSED))
-        event->key.modifiers |= TERM_MD_CTRL;
+        event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_CTRL);
       if (ker->dwControlKeyState & SHIFT_PRESSED)
-        event->key.modifiers |= TERM_MD_SHIFT;
+        event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_SHIFT);
 
     } break;
 
@@ -762,11 +762,11 @@ static bool _read_event(term_Event* event) {
       _ctx.mousepos.y = event->mouse.pos.y;
 
       if ((mer->dwControlKeyState & LEFT_ALT_PRESSED) || (mer->dwControlKeyState & RIGHT_ALT_PRESSED))
-        event->mouse.modifiers |= TERM_MD_ALT;
+        event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_ALT);
       if ((mer->dwControlKeyState & LEFT_CTRL_PRESSED) || (mer->dwControlKeyState & RIGHT_CTRL_PRESSED))
-        event->mouse.modifiers |= TERM_MD_CTRL;
+        event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_CTRL);
       if (mer->dwControlKeyState & SHIFT_PRESSED)
-        event->mouse.modifiers |= TERM_MD_SHIFT;
+        event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_SHIFT);
 
     } break;
 
@@ -830,12 +830,12 @@ static void _key_event(char c, term_Event* event) {
 
   /* Ctrl + key */
   if (1 <= c && c <= 26) {
-    event->key.modifiers |= TERM_MD_CTRL;
+    event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_CTRL);
     event->key.code = (term_KeyCode)('A' + (c - 1));
 
   } else if (BETWEEN('a', c, 'z') || BETWEEN('A', c, 'Z') || BETWEEN('0', c, '9')) {
     event->key.code = (term_KeyCode) toupper(c);
-    if (BETWEEN('A', c, 'Z')) event->key.modifiers |= TERM_MD_SHIFT;
+    if (BETWEEN('A', c, 'Z')) event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_SHIFT);
   }
 }
 
@@ -870,9 +870,9 @@ static void _mouse_event(const char* buff, uint32_t count, term_Event * event) {
   int type = cb >> 5;
 
   /* Note that the modifiers won't work/incorrect in WSL. */
-  if (high & 0b001) event->mouse.modifiers |= TERM_MD_SHIFT;
-  if (high & 0b010) event->mouse.modifiers |= TERM_MD_ALT;
-  if (high & 0b100) event->mouse.modifiers |= TERM_MD_CTRL;
+  if (high & 0b001) event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_SHIFT);
+  if (high & 0b010) event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_ALT);
+  if (high & 0b100) event->mouse.modifiers = (term_Modifiers)(event->mouse.modifiers | TERM_MD_CTRL);
 
   event->mouse.pos.x = cx - 1;
   event->mouse.pos.y = cy - 1;
@@ -916,7 +916,7 @@ void _parse_escape_sequence(const char* buff, uint32_t count, term_Event* event)
 
   if (count == 2) {
     _key_event(buff[1], event);
-    event->key.modifiers |= TERM_MD_ALT;
+    event->key.modifiers = (term_Modifiers)(event->key.modifiers | TERM_MD_ALT);
     return;
   }
 
@@ -988,8 +988,8 @@ static bool _read_event(term_Event* event) {
   int event_length = 1; /* Num of character for the event in the buffer. */
 
   if (*_ctx.buff == '\x1b') {
-    event_length = _escape_length(_ctx.buff + 1, _ctx.buffc - 1) + 1;
-    _parse_escape_sequence(_ctx.buff, event_length, event);
+    event_length = _escape_length((const char*)_ctx.buff + 1, _ctx.buffc - 1) + 1;
+    _parse_escape_sequence((const char*)_ctx.buff, event_length, event);
     if (event->type == TERM_ET_MOUSE_MOVE) {
       if (_veceq(_ctx.mousepos, event->mouse.pos)) {
         _buff_shift(event_length);
