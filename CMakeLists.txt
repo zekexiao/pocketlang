@@ -31,9 +31,9 @@ set(POCKETLANG_LIB_SOURCES
 )
 
 set(POCKETLANG_CLI_SOURCES
-  cli/CliParser.cpp
-  cli/PocketApp.cpp
-  cli/PocketVm.cpp
+  cli/cli_parser.cpp
+  cli/pocket_app.cpp
+  cli/pocket_vm.cpp
   cli/main.cpp
 )
 
