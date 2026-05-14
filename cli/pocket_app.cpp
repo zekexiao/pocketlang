@@ -3,11 +3,11 @@
  *  Distributed Under The MIT License
  */
 
-#include "PocketApp.h"
+#include "pocket_app.h"
 
-#include "CliOptions.h"
-#include "CliParser.h"
-#include "PocketVm.h"
+#include "cli_options.h"
+#include "cli_parser.h"
+#include "pocket_vm.h"
 
 #include <pocketlang.h>
 

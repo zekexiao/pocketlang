@@ -6,7 +6,7 @@
 #ifndef CLI_PARSER_H
 #define CLI_PARSER_H
 
-#include "CliOptions.h"
+#include "cli_options.h"
 
 class CliParser {
  public:

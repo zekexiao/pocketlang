@@ -3,7 +3,7 @@
  *  Distributed Under The MIT License
  */
 
-#include "PocketApp.h"
+#include "pocket_app.h"
 
 int main(int argc, const char** argv) {
   PocketApp app;

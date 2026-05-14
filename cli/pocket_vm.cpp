@@ -3,7 +3,7 @@
  *  Distributed Under The MIT License
  */
 
-#include "PocketVm.h"
+#include "pocket_vm.h"
 
 #ifdef _WIN32
   #include <Windows.h>
