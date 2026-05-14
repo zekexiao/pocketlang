@@ -13,8 +13,17 @@ from os.path import (join, abspath, dirname,
 ## Pocket lang root directory.
 ROOT_PATH = abspath(join(dirname(__file__), ".."))
 
-## Output debug cli executable path relative to root.
-POCKET_BINARY = "build/Debug/bin/pocket"
+## Candidate debug cli executable paths relative to root.
+POCKET_BINARIES = (
+  "build/Debug/bin/pocket",
+  "build/Debug/pocket",
+  "build/bin/pocket",
+  "build/pocket",
+  "build-cmake/Debug/bin/pocket",
+  "build-cmake/Debug/pocket",
+  "build-cmake/bin/pocket",
+  "build-cmake/pocket",
+)
 
 ## All the test files, relative to root/tests/ directory.
 TEST_SUITE = {
@@ -94,11 +103,13 @@ def get_pocket_binary():
   system = platform.system()
   if system not in ("Windows", "Linux", "Darwin"):
     error_exit("Unsupported platform")
-  binary = join(ROOT_PATH, POCKET_BINARY)
-  if system == "Windows": binary += ".exe"
-  if not exists(binary):
-    error_exit(f"Pocket interpreter not found at: '{binary}'")
-  return binary
+  for candidate in POCKET_BINARIES:
+    binary = join(ROOT_PATH, candidate)
+    if system == "Windows":
+      binary += ".exe"
+    if exists(binary):
+      return binary
+  error_exit("Pocket interpreter not found in expected build paths.")
 
 def run_command(command):
   return subprocess.run(command,

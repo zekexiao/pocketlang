@@ -17,9 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run the Makefile.
+      - name: Build with CMake.
         run: |
-          make all
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
       - name: Run tests.
         run: |
           python3 scripts/run_tests.py
@@ -29,9 +30,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2      
-      - name: Run build batch script.
+      - name: Build with CMake.
         run: |
-          cmd /c scripts\build.bat
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
       - name: Run tests.
         run: |
           python3 scripts/run_tests.py
@@ -41,11 +43,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run the Makefile.
+      - name: Build with CMake.
         run: |
-          make all
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
       - name: Run tests.
         run: |
           python3 scripts/run_tests.py
-
 

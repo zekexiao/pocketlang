@@ -65,52 +65,21 @@ directory. They were executed using a small python script in the test directory.
 
 It can be build from source easily without any dependencies, or additional
 requirements except for a c99 compatible compiler and a c++17 compiler for the
-CLI. It can be compiled with the following command.
-
-#### GCC / MinGw / Clang
-```
-g++ -std=c++17 -o pocket cli/*.cpp src/core/*.c src/libs/*.c -Isrc/include -lm -ldl
-```
+CLI.
 
 #### CMake (recommended)
 ```
-cmake -S . -B build-cmake
-cmake --build build-cmake
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --config Debug
 ```
 
-#### MSVC
-```
-cl /Fepocket cli/*.c src/core/*.c src/libs/*.c /Isrc/include && rm *.obj
+#### Amalgamated single-header build
+```bash
+python3 scripts/amalgamate.py > /tmp/pocketlang.h
 ```
 
-#### Makefile
-```
-make
-```
-To run the make file on windows with `mingw`, you require the GNU `make` tool which you can get
-from [msys2](https://www.msys2.org/) or [cygwin](https://www.cygwin.com/).
-
-#### Windows batch script
-```
-scripts\build.bat
-```
-You don't have to run the script from a Visual Studio .NET developer command prompt, It'll search
-for the MSVS installation path and setup the build environment.
-
-### For other compiler/IDE
-
-1. Create an empty project file / makefile.
-2. Add all C files in the src/core/ directory.
-3. Add all C files in the src/libs/ directory.
-4. Add all C++ files in the cli/ directory.
-5. Add `src/include` to include path.
-6. If \*nix link m, dl
-7. Compile.
-
-Visual studio project files can be generated with the premake, see
-[scripts/README](https://github.com/ThakeeNathees/pocketlang/scripts/README.md)
-for more information. If you weren't able to compile it, please report
-us by [opening an issue](https://github.com/ThakeeNathees/pocketlang/issues/new).
+Then include the generated header in your project and define `PK_IMPLEMENT` in
+exactly one translation unit.
 
 
 ## References
