@@ -145,7 +145,7 @@ if errorlevel 1 goto :FAIL
 
 cd %target_dir%obj\cli
 
-cl /nologo /c %addnl_cdefines% %addnl_cflags% /I%pocket_root%src\include\ %pocket_root%cli\*.c
+cl /nologo /c %addnl_cdefines% %addnl_cflags% /I%pocket_root%src\include\ %pocket_root%cli\*.cpp
 if errorlevel 1 goto :FAIL
 
 cd %target_dir%bin\
@@ -191,5 +191,4 @@ exit /b 1
 popd
 endlocal
 goto :eof
-
 
