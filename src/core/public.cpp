@@ -203,11 +203,11 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
 
   Function* fptr = newFunction(vm, name, (int) strlen(name), NULL,
                                true, docstring, NULL);
-  vmPushTempRef(vm, &fptr->_super); // fptr.
+  vm->vmPushTempRef(&fptr->_super); // fptr.
   fptr->native = fn;
   fptr->arity = arity;
   vm->builtins_funcs[vm->builtins_count++] = newClosure(vm, fptr);
-  vmPopTempRef(vm); // fptr.
+  vm->vmPopTempRef(); // fptr.
 }
 
 void pkAddSearchPath(PKVM* vm, const char* path) {
@@ -221,18 +221,18 @@ void pkAddSearchPath(PKVM* vm, const char* path) {
                                       "either '/' or '\\'.");
 
   String* spath = newStringLength(vm, path, (uint32_t) length);
-  vmPushTempRef(vm, &spath->_super); // spath.
+  vm->vmPushTempRef(&spath->_super); // spath.
   listAppend(vm, vm->search_paths, VAR_OBJ(spath));
-  vmPopTempRef(vm); // spath.
+  vm->vmPopTempRef(); // spath.
 }
 
 PkHandle* pkNewModule(PKVM* vm, const char* name) {
   CHECK_ARG_NULL(name);
   Module* module = newModuleInternal(vm, name);
 
-  vmPushTempRef(vm, &module->_super); // module.
-  PkHandle* handle = vmNewHandle(vm, VAR_OBJ(module));
-  vmPopTempRef(vm); // module.
+  vm->vmPushTempRef(&module->_super); // module.
+  PkHandle* handle = vm->vmNewHandle(VAR_OBJ(module));
+  vm->vmPopTempRef(); // module.
 
   return handle;
 }
@@ -241,7 +241,7 @@ void pkRegisterModule(PKVM* vm, PkHandle* module) {
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
 
   Module* module_ = (Module*)AS_OBJ(module->value);
-  vmRegisterModule(vm, module_, module_->name);
+  vm->vmRegisterModule(module_, module_->name);
 }
 
 void pkModuleAddFunction(PKVM* vm, PkHandle* module, const char* name,
@@ -274,9 +274,9 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
   class_->new_fn = new_fn;
   class_->delete_fn = delete_fn;
 
-  vmPushTempRef(vm, &class_->_super); // class_.
-  PkHandle* handle = vmNewHandle(vm, VAR_OBJ(class_));
-  vmPopTempRef(vm); // class_.
+  vm->vmPushTempRef(&class_->_super); // class_.
+  PkHandle* handle = vm->vmNewHandle(VAR_OBJ(class_));
+  vm->vmPopTempRef(); // class_.
   return handle;
 }
 
@@ -295,7 +295,7 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
 
   Function* fn = newFunction(vm, name, (int)strlen(name),
                              class_->owner, true, docstring, NULL);
-  vmPushTempRef(vm, &fn->_super); // fn.
+  vm->vmPushTempRef(&fn->_super); // fn.
 
   fn->arity = arity;
   fn->is_method = true;
@@ -306,13 +306,13 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
   // won't be garbage collected (class handle has reference to the module).
 
   Closure* method = newClosure(vm, fn);
-  vmPopTempRef(vm); // fn.
-  vmPushTempRef(vm, &method->_super); // method.
+  vm->vmPopTempRef(); // fn.
+  vm->vmPushTempRef(&method->_super); // method.
   {
     pkClosureBufferWrite(&class_->methods, vm, method);
     if (!strcmp(name, CTOR_NAME)) class_->ctor = method;
   }
-  vmPopTempRef(vm); // method.
+  vm->vmPopTempRef(); // method.
 }
 
 void pkModuleAddSource(PKVM* vm, PkHandle* module, const char* source) {
@@ -344,7 +344,7 @@ PkResult pkRunString(PKVM* vm, const char* source) {
 
   // Create a temproary module for the source.
   Module* module = newModule(vm);
-  vmPushTempRef(vm, &module->_super); // module.
+  vm->vmPushTempRef(&module->_super); // module.
   {
     module->path = newString(vm, "@(String)");
     result = compile(vm, module, source, NULL);
@@ -355,12 +355,12 @@ PkResult pkRunString(PKVM* vm, const char* source) {
     module->initialized = true;
 
     Fiber* fiber = newFiber(vm, module->body);
-    vmPushTempRef(vm, &fiber->_super); // fiber.
-    vmPrepareFiber(vm, fiber, 0, NULL);
-    vmPopTempRef(vm); // fiber.
-    result = vmRunFiber(vm, fiber);
+    vm->vmPushTempRef(&fiber->_super); // fiber.
+    vm->vmPrepareFiber(fiber, 0, NULL);
+    vm->vmPopTempRef(); // fiber.
+    result = vm->vmRunFiber(fiber);
   }
-  vmPopTempRef(vm); // module.
+  vm->vmPopTempRef(); // module.
 
   return result;
 }
@@ -394,14 +394,14 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
   }
 
   module = newModule(vm);
-  vmPushTempRef(vm, &module->_super); // module.
+  vm->vmPushTempRef(&module->_super); // module.
   {
     // Set module path and and deallocate resolved.
     String* script_path = newString(vm, resolved_);
-    vmPushTempRef(vm, &script_path->_super); // script_path.
+    vm->vmPushTempRef(&script_path->_super); // script_path.
     pkRealloc(vm, resolved_, 0);
     module->path = script_path;
-    vmPopTempRef(vm); // script_path.
+    vm->vmPopTempRef(); // script_path.
 
     initializeModule(vm, module, true);
 
@@ -421,10 +421,10 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
     }
 
     if (result == PK_RESULT_SUCCESS) {
-      vmRegisterModule(vm, module, module->path);
+      vm->vmRegisterModule(module, module->path);
     }
   }
-  vmPopTempRef(vm); // module.
+  vm->vmPopTempRef(); // module.
 
   if (result != PK_RESULT_SUCCESS) return result;
 
@@ -432,10 +432,10 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
   // main function to avoid cyclic inclusion crash the VM.
   module->initialized = true;
   Fiber* fiber = newFiber(vm, module->body);
-  vmPushTempRef(vm, &fiber->_super); // fiber.
-  vmPrepareFiber(vm, fiber, 0, NULL);
-  vmPopTempRef(vm); // fiber.
-  return vmRunFiber(vm, fiber);
+  vm->vmPushTempRef(&fiber->_super); // fiber.
+  vm->vmPrepareFiber(fiber, 0, NULL);
+  vm->vmPopTempRef(); // fiber.
+  return vm->vmRunFiber(fiber);
 }
 
 // FIXME: this should be moved to somewhere general.
@@ -553,7 +553,7 @@ PkResult pkRunREPL(PKVM* vm) {
     // Compiled source would be the "main" function of the module. Run it.
     Closure* _main = moduleGetMainFunction(vm, _module);
     ASSERT(_main != NULL, OOPS);
-    result = vmCallFunction(vm, _main, 0, NULL, NULL);
+    result = vm->vmCallFunction(_main, 0, NULL, NULL);
 
   } while (!done);
 
@@ -721,7 +721,7 @@ bool pkIsSlotInstanceOf(PKVM* vm, int inst, int cls, bool* val) {
 void pkReserveSlots(PKVM* vm, int count) {
   if (vm->fiber == NULL) vm->fiber = newFiber(vm, NULL);
   int needed = (int)(vm->fiber->ret - vm->fiber->stack) + count;
-  vmEnsureStackSize(vm, vm->fiber, needed);
+  vm->vmEnsureStackSize(vm->fiber, needed);
 }
 
 int pkGetSlotsCount(PKVM* vm) {
@@ -762,7 +762,7 @@ const char* pkGetSlotString(PKVM* vm, int index, uint32_t* length) {
 PkHandle* pkGetSlotHandle(PKVM* vm, int index) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
-  return vmNewHandle(vm, SLOT(index));
+  return vm->vmNewHandle(SLOT(index));
 }
 
 void* pkGetSlotNativeInstance(PKVM* vm, int index) {
@@ -841,9 +841,9 @@ bool pkSetAttribute(PKVM* vm, int instance, const char* name, int value) {
   VALIDATE_SLOT_INDEX(value);
 
   String* sname = newString(vm, name);
-  vmPushTempRef(vm, &sname->_super); // sname.
+  vm->vmPushTempRef(&sname->_super); // sname.
   varSetAttrib(vm, SLOT(instance), sname, SLOT(value));
-  vmPopTempRef(vm); // sname.
+  vm->vmPopTempRef(); // sname.
 
   return !VM_HAS_ERROR(vm);
 }
@@ -856,9 +856,9 @@ bool pkGetAttribute(PKVM* vm, int instance, const char* name,
   VALIDATE_SLOT_INDEX(index);
 
   String* sname = newString(vm, name);
-  vmPushTempRef(vm, &sname->_super); // sname.
+  vm->vmPushTempRef(&sname->_super); // sname.
   SET_SLOT(index, varGetAttrib(vm, SLOT(instance), sname));
-  vmPopTempRef(vm); // sname.
+  vm->vmPopTempRef(); // sname.
 
   return !VM_HAS_ERROR(vm);
 }
@@ -867,7 +867,7 @@ static Var _newInstance(PKVM* vm, Class* cls, int argc, Var* argv) {
   Var instance = preConstructSelf(vm, cls);
   if (VM_HAS_ERROR(vm)) return VAR_NULL;
 
-  if (IS_OBJ(instance)) vmPushTempRef(vm, AS_OBJ(instance)); // instance.
+  if (IS_OBJ(instance)) vm->vmPushTempRef(AS_OBJ(instance)); // instance.
 
   Closure* ctor = cls->ctor;
   while (ctor == NULL) {
@@ -876,8 +876,8 @@ static Var _newInstance(PKVM* vm, Class* cls, int argc, Var* argv) {
     ctor = cls->ctor;
   }
 
-  if (ctor != NULL) vmCallMethod(vm, instance, ctor, argc, argv, NULL);
-  if (IS_OBJ(instance)) vmPopTempRef(vm); // instance.
+  if (ctor != NULL) vm->vmCallMethod(instance, ctor, argc, argv, NULL);
+  if (IS_OBJ(instance)) vm->vmPopTempRef(); // instance.
 
   return instance;
 }
@@ -994,7 +994,7 @@ bool pkCallFunction(PKVM* vm, int fn, int argc, int argv, int ret) {
     ASSERT(!func->fn->is_method, OOPS);
 
     Var retval;
-    vmCallFunction(vm, func, argc,
+    vm->vmCallFunction(func, argc,
                    vm->fiber->ret + argv, &retval);
     if (ret >= 0) SET_SLOT(ret, retval);
     return !VM_HAS_ERROR(vm);
@@ -1017,10 +1017,10 @@ bool pkCallMethod(PKVM* vm, int instance, const char* method,
 
   bool is_method = false;
   String* smethod = newString(vm, method);
-  vmPushTempRef(vm, &smethod->_super); // smethod.
+  vm->vmPushTempRef(&smethod->_super); // smethod.
   Var callable = getMethod(vm, SLOT(instance), smethod,
                           &is_method);
-  vmPopTempRef(vm); // smethod.
+  vm->vmPopTempRef(); // smethod.
 
   if (VM_HAS_ERROR(vm)) return false;
 
@@ -1034,7 +1034,7 @@ bool pkCallMethod(PKVM* vm, int instance, const char* method,
 
   if (IS_OBJ_TYPE(callable, OBJ_CLOSURE)) {
     Var retval;
-    vmCallMethod(vm, SLOT(instance), (Closure*) AS_OBJ(callable), argc,
+    vm->vmCallMethod(SLOT(instance), (Closure*) AS_OBJ(callable), argc,
                  vm->fiber->ret + argv, &retval);
     if (ret >= 0) SET_SLOT(ret, retval);
     return !VM_HAS_ERROR(vm);
@@ -1056,9 +1056,9 @@ bool pkImportModule(PKVM* vm, const char* path, int index) {
   VALIDATE_SLOT_INDEX(index);
 
   String* path_ = newString(vm, path);
-  vmPushTempRef(vm, &path_->_super); // path_
-  Var module = vmImportModule(vm, NULL, path_);
-  vmPopTempRef(vm); // path_
+  vm->vmPushTempRef(&path_->_super); // path_
+  Var module = vm->vmImportModule(NULL, path_);
+  vm->vmPopTempRef(); // path_
 
   SET_SLOT(index, module);
   return !VM_HAS_ERROR(vm);
@@ -1112,7 +1112,7 @@ static char* stdinRead(PKVM* vm) {
   } while (c != EOF);
   pkByteBufferWrite(&buff, vm, '\0');
 
-  char* str = pkRealloc(vm, NULL, buff.count);
+  char* str = (char*)pkRealloc(vm, NULL, buff.count);
   memcpy(str, buff.data, buff.count);
   pkByteBufferClear(&buff, vm);
   return str;
@@ -1131,7 +1131,7 @@ static char* loadScript(PKVM* vm, const char* path) {
   fseek(file, 0, SEEK_SET);
 
   // Allocate string + 1 for the NULL terminator.
-  char* buff = pkRealloc(vm, NULL, file_size + 1);
+  char* buff = (char*)pkRealloc(vm, NULL, file_size + 1);
   ASSERT(buff != NULL, "pkRealloc failed.");
 
   clearerr(file);

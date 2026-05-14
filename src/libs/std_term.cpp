@@ -33,7 +33,7 @@ static void _setSlotVector(PKVM* vm, int slot, int tmp, double x, double y) {
 }
 
 void* _termEventNew(PKVM* vm) {
-  term_Event* event = pkRealloc(vm, NULL, sizeof(term_Event));
+  term_Event* event = (term_Event*)pkRealloc(vm, NULL, sizeof(term_Event));
   event->type = TERM_ET_UNKNOWN;
   return event;
 }
@@ -47,7 +47,7 @@ PKDEF(_termEventGetter,
   const char* name;
   if (!pkValidateSlotString(vm, 1, &name, NULL)) return;
 
-  term_Event* event = pkGetSelf(vm);
+  term_Event* event = (term_Event*)pkGetSelf(vm);
 
   if (strcmp(name, "type") == 0) {
     pkSetSlotNumber(vm, 0, (double)event->type);
@@ -252,7 +252,7 @@ PKDEF(_termReadEvent,
   pkSetSlotHandle(vm, 2, _cls_term_event);
   if (!pkValidateSlotInstanceOf(vm, 1, 2)) return;
 
-  term_Event* event = pkGetSlotNativeInstance(vm, 1);
+  term_Event* event = (term_Event*)pkGetSlotNativeInstance(vm, 1);
   pkSetSlotBool(vm, 0, term_read_event(event));
 }
 
@@ -290,7 +290,7 @@ void registerModuleTerm(PKVM* vm) {
 
   ADD_METHOD(_cls_term_event, "@getter", _termEventGetter, 1);
 
-  pkModuleAddSource(vm, term, ext_term_pk);
+  pkModuleAddSource(vm, term, (const char*)ext_term_pk);
 
   // This is required for language server. Since we need to send '\r\n' to
   // the lsp client but windows will change '\n' to '\r\n' and it'll become

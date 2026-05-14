@@ -2653,7 +2653,7 @@ int Compiler::compileClass() {
   Class* cls = newClass(_vm, name, name_len,
                         _vm->builtin_classes[PK_OBJECT], this->module,
                         NULL, &cls_index);
-  vmPushTempRef(_vm, &cls->_super); // cls.
+  _vm->vmPushTempRef(&cls->_super); // cls.
   this->parser.parsing_class = true;
 
   checkMaxConstantsReached(cls_index);
@@ -2712,7 +2712,7 @@ int Compiler::compileClass() {
   emitOpcode(OP_POP); // Pop the class.
 
   this->parser.parsing_class = false;
-  vmPopTempRef(_vm); // cls.
+  _vm->vmPopTempRef(); // cls.
 
   return cls_index;
 }

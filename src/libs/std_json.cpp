@@ -41,37 +41,37 @@ static Var _cJsonToPocket(PKVM* vm, cJSON* item) {
 
     case cJSON_Array: {
       List* list = newList(vm, 8);
-      vmPushTempRef(vm, &list->_super); // list.
+      vm->vmPushTempRef(&list->_super); // list.
 
       cJSON* elem = item->child;
       while (elem != NULL) {
         Var v = _cJsonToPocket(vm, elem);
-        if (IS_OBJ(v)) vmPushTempRef(vm, AS_OBJ(v)); // v.
+        if (IS_OBJ(v)) vm->vmPushTempRef(AS_OBJ(v)); // v.
         listAppend(vm, list, v);
-        if (IS_OBJ(v)) vmPopTempRef(vm); // v.
+        if (IS_OBJ(v)) vm->vmPopTempRef(); // v.
         elem = elem->next;
       }
-      vmPopTempRef(vm); // list.
+      vm->vmPopTempRef(); // list.
       return VAR_OBJ(list);
     }
 
     case cJSON_Object: {
       Map* map = newMap(vm);
-      vmPushTempRef(vm, &map->_super); // map.
+      vm->vmPushTempRef(&map->_super); // map.
       cJSON* elem = item->child;
       while (elem != NULL) {
         String* key = newString(vm, elem->string);
-        vmPushTempRef(vm, &key->_super); // key.
+        vm->vmPushTempRef(&key->_super); // key.
         {
           Var value = _cJsonToPocket(vm, elem);
-          if (IS_OBJ(value)) vmPushTempRef(vm, AS_OBJ(value)); // value.
+          if (IS_OBJ(value)) vm->vmPushTempRef(AS_OBJ(value)); // value.
           mapSet(vm, map, VAR_OBJ(key), value);
-          if (IS_OBJ(value)) vmPopTempRef(vm); // value.
+          if (IS_OBJ(value)) vm->vmPopTempRef(); // value.
         }
-        vmPopTempRef(vm); // key.
+        vm->vmPopTempRef(); // key.
         elem = elem->next;
       }
-      vmPopTempRef(vm); // map.
+      vm->vmPopTempRef(); // map.
       return VAR_OBJ(map);
     }
 

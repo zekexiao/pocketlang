@@ -110,7 +110,7 @@ void* osLoadDL(PKVM* vm, const char* path) {
   void* handle = dlopen(path, RTLD_LAZY);
   if (handle == NULL) return NULL;
 
-  pkInitApiFn init_fn = dlsym(handle, PK_API_INIT_FN_NAME);
+  pkInitApiFn init_fn = (pkInitApiFn)dlsym(handle, PK_API_INIT_FN_NAME);
   if (init_fn == NULL) {
     if (dlclose(handle)) { /* TODO: Handle error. */ }
     dlerror(); // Clear error.
@@ -124,7 +124,7 @@ void* osLoadDL(PKVM* vm, const char* path) {
 }
 
 PkHandle* osImportDL(PKVM* vm, void* handle) {
-  pkExportModuleFn export_fn = dlsym(handle, PK_EXPORT_FN_NAME);
+  pkExportModuleFn export_fn = (pkExportModuleFn)dlsym(handle, PK_EXPORT_FN_NAME);
   if (export_fn == NULL) {
     dlerror(); // Clear error.
     return NULL;

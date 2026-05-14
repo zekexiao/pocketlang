@@ -60,7 +60,7 @@
                                                                               \
   void pk##m_name##BufferClear(pk##m_name##Buffer* self,                      \
               PKVM* vm) {                                                     \
-    vmRealloc(vm, self->data, self->capacity * sizeof(m_type), 0);            \
+    vm->vmRealloc(self->data, self->capacity * sizeof(m_type), 0);            \
     self->data = NULL;                                                        \
     self->count = 0;                                                          \
     self->capacity = 0;                                                       \
@@ -71,7 +71,7 @@
     if (self->capacity < size) {                                              \
       int capacity = utilPowerOf2Ceil((int)size);                             \
       if (capacity < MIN_CAPACITY) capacity = MIN_CAPACITY;                   \
-      self->data = (m_type*) vmRealloc(vm, self->data,                        \
+      self->data = (m_type*) vm->vmRealloc(self->data,                        \
         self->capacity * sizeof(m_type), capacity * sizeof(m_type));          \
       self->capacity = capacity;                                              \
     }                                                                         \

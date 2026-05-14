@@ -6,26 +6,26 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(POCKETLANG_CORE_SOURCES
-  src/core/compiler.c
-  src/core/core.c
-  src/core/debug.c
-  src/core/public.c
-  src/core/utils.c
-  src/core/value.c
-  src/core/vm.c
+  src/core/compiler.cpp
+  src/core/core.cpp
+  src/core/debug.cpp
+  src/core/public.cpp
+  src/core/utils.cpp
+  src/core/value.cpp
+  src/core/vm.cpp
 )
 
 set(POCKETLANG_LIB_SOURCES
-  src/libs/libs.c
-  src/libs/std_dummy.c
-  src/libs/std_io.c
-  src/libs/std_json.c
-  src/libs/std_math.c
-  src/libs/std_os.c
-  src/libs/std_path.c
-  src/libs/std_term.c
-  src/libs/std_time.c
-  src/libs/std_types.c
+  src/libs/libs.cpp
+  src/libs/std_dummy.cpp
+  src/libs/std_io.cpp
+  src/libs/std_json.cpp
+  src/libs/std_math.cpp
+  src/libs/std_os.cpp
+  src/libs/std_path.cpp
+  src/libs/std_term.cpp
+  src/libs/std_time.cpp
+  src/libs/std_types.cpp
   src/libs/thirdparty/cJSON/cJSON.c
   src/libs/thirdparty/cwalk/cwalk.c
 )

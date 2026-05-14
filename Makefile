@@ -23,17 +23,18 @@ OBJ_DIR = obj/
 LIB_DIR = lib/
 
 SRCS := $(foreach DIR,$(SRC_DIRS),$(wildcard $(DIR)*.c))
-CLI_CPP_SRCS := $(wildcard ./cli/*.cpp)
-SRCS += $(CLI_CPP_SRCS)
+SRCS += $(foreach DIR,$(SRC_DIRS),$(wildcard $(DIR)*.cpp))
 OBJS := $(SRCS:.c=.o)
 OBJS := $(OBJS:.cpp=.o)
 DEPS := $(OBJS:.o=.d)
 
 # Library sources exclude CLI main.c
 LIB_SRCS := $(foreach DIR,$(LIB_SRC_DIRS),$(wildcard $(DIR)*.c))
+LIB_SRCS += $(foreach DIR,$(LIB_SRC_DIRS),$(wildcard $(DIR)*.cpp))
 LIB_SRCS += $(wildcard ./src/libs/thirdparty/cJSON/*.c)
 LIB_SRCS += $(wildcard ./src/libs/thirdparty/cwalk/*.c)
 LIB_OBJS := $(LIB_SRCS:.c=.o)
+LIB_OBJS := $(LIB_OBJS:.cpp=.o)
 
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 DEP_FLAGS  = -MMD -MP

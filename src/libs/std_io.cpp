@@ -102,7 +102,7 @@ typedef struct {
 } File;
 
 void* _fileNew(PKVM* vm) {
-  File* file = pkRealloc(vm, NULL, sizeof(File));
+  File* file = (File*)pkRealloc(vm, NULL, sizeof(File));
   ASSERT(file != NULL, "pkRealloc failed.");
   file->closed = true;
   file->mode = FMODE_NONE;
@@ -245,7 +245,7 @@ DEF(_fileRead,
   }
 
   // Allocate string + 1 for the NULL terminator.
-  char* buff = pkRealloc(vm, NULL, (size_t) count + 1);
+  char* buff = (char*)pkRealloc(vm, NULL, (size_t) count + 1);
   ASSERT(buff != NULL, "pkRealloc failed.");
 
   clearerr(file->fp);
@@ -256,22 +256,24 @@ DEF(_fileRead,
     goto L_done;
   }
 
-  bool is_read_failed = read > count;
-  if (!is_read_failed) buff[read] = '\0';
+  {
+    bool is_read_failed = read > count;
+    if (!is_read_failed) buff[read] = '\0';
 
-  // If EOF is already reached it won't read anymore bytes.
-  if (read == 0) {
-    pkSetSlotStringLength(vm, 0, "", 0);
-    goto L_done;
+    // If EOF is already reached it won't read anymore bytes.
+    if (read == 0) {
+      pkSetSlotStringLength(vm, 0, "", 0);
+      goto L_done;
+    }
+
+    if (is_read_failed) {
+      pkSetRuntimeError(vm, "C.fread() failed.");
+      goto L_done;
+    }
+
+    // TODO: maybe I should check if the [read] length is larger for uint32_t.
+    pkSetSlotStringLength(vm, 0, buff, (uint32_t) read);
   }
-
-  if (is_read_failed) {
-    pkSetRuntimeError(vm, "C.fread() failed.");
-    goto L_done;
-  }
-
-  // TODO: maybe I should check if the [read] length is larger for uint32_t.
-  pkSetSlotStringLength(vm, 0, buff, (uint32_t) read);
   goto L_done;
 
 L_done:
@@ -329,7 +331,7 @@ DEF(_fileGetLine,
   } while (true);
 
   // A null byte '\0' will be added by pocketlang.
-  pkSetSlotStringLength(vm, 0, buff.data, buff.count);
+  pkSetSlotStringLength(vm, 0, (const char*)buff.data, buff.count);
 
 L_done:
   pkByteBufferClear(&buff, vm);
