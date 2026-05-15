@@ -6,6 +6,7 @@
 
 #include <math.h>
 #include <format>
+#include <optional>
 #include <string>
 
 #ifndef PK_AMALGAMATED
@@ -430,8 +431,8 @@ void PKVM::vmUnloadDlHandle(void* handle) {
 /*****************************************************************************/
 
 static Module* _importScript(PKVM* vm, String* resolved, String* name) {
-  char* source = vm->config.load_script_fn(vm, resolved->data);
-  if (source == NULL) {
+  auto source = vm->config.load_script_fn(vm, resolved->data);
+  if (!source.has_value()) {
     VM_SET_ERROR(vm, stringFormat(vm, "Error loading module at \"@\"",
       resolved));
     return NULL;
@@ -445,8 +446,7 @@ static Module* _importScript(PKVM* vm, String* resolved, String* name) {
   vm->vmPushTempRef(static_cast<Object*>(module)); // module.
   {
     initializeModule(vm, module, false);
-    PkResult result = compile(vm, module, source, NULL);
-    pkRealloc(vm, source, 0);
+    PkResult result = compile(vm, module, source->c_str(), NULL);
     if (result == PK_RESULT_SUCCESS) {
       vm->vmRegisterModule(module, resolved);
     } else {
@@ -488,8 +488,14 @@ Var PKVM::vmImportModule(String* from, String* path) {
   do {
     // If we reached here. It's not a native module (ie. module's absolute path
     // is required to import and cache).
-    _resolved = vm->config.resolve_path_fn(vm, from_path, path->data);
-    if (_resolved) break;
+    std::optional<std::string> opt_resolved =
+        vm->config.resolve_path_fn(vm, from_path ? from_path : "", path->data);
+    if (opt_resolved.has_value()) {
+      size_t sz = opt_resolved->size();
+      _resolved = (char*)pkRealloc(vm, NULL, sz + 1);
+      memcpy(_resolved, opt_resolved->c_str(), sz + 1);
+      break;
+    }
 
     if (search_path_idx >= vm->search_paths->elements.count) break;
 

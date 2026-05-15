@@ -12,8 +12,10 @@
 #endif
 
 #include <errno.h>
+#include <optional>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 // FIXME:
 // Since this are part of the "standard" pocketlang libraries, we can include
@@ -55,12 +57,13 @@ void cleanupLibs(PKVM* vm);
 // The pocketlang's import statement path resolving function. This
 // implementation is required by pockelang from it's hosting application
 // inorder to use the import statements.
-char* pathResolveImport(PKVM * vm, const char* from, const char* path);
+std::optional<std::string> pathResolveImport(PKVM* vm, const std::string& from,
+                                             const std::string& path);
 
 #ifndef PK_NO_DL
 
 // Loads the platform dependent dynamic library and returns the handle.
-void* osLoadDL(PKVM* vm, const char* path);
+void* osLoadDL(PKVM* vm, const std::string& path);
 
 // Import the module from the dynamic library handle which was loaded from os.
 PkHandle* osImportDL(PKVM* vm, void* handle);
@@ -70,8 +73,7 @@ void osUnloadDL(PKVM* vm, void* handle);
 
 #endif
 
-// Write the executable's path to the buffer and return true, if it failed
-// it'll return false.
+// Write the executable's path to [buff], return true on success.
 bool osGetExeFilePath(char* buff, int size);
 
 #endif // LIBS_H

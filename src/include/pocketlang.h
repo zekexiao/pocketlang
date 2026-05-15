@@ -7,7 +7,8 @@
 #ifndef POCKETLANG_H
 #define POCKETLANG_H
 
-#include <stdbool.h>
+#include <optional>
+#include <string>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -51,8 +52,8 @@
   #define PK_PUBLIC
 #endif
 
-// Returns the docstring of the function, which is a static const char* defined
-// just above the function by the DEF() macro below.
+// Returns the docstring of the function, which is a static const std::string
+// defined just above the function by the PKDEF() macro below.
 #define PK_DOCS(fn) _pk_doc_##fn
 
 // A macro to declare a function, with docstring, which is defined as
@@ -60,7 +61,7 @@
 // [signature] is the function name and parameter names with type information.
 // ex: `io.open(path:String, mode:String) -> io.File`
 #define PKDEF(fn, signature, docstring)        \
-  static const char* PK_DOCS(fn) = signature "\n\n" docstring;  \
+  static const std::string PK_DOCS(fn) = signature "\n\n" docstring;  \
   static void fn(PKVM* vm)
 
 /*****************************************************************************/
@@ -76,10 +77,6 @@ typedef struct PKVM PKVM;
 // till it's released with pkReleaseHandle().
 typedef struct PkHandle PkHandle;
 
-#ifndef __cplusplus
-typedef enum PkVarType PkVarType;
-typedef enum PkResult PkResult;
-#endif
 typedef struct PkConfiguration PkConfiguration;
 
 // C function pointer which is callable from pocketLang by native module
@@ -99,13 +96,11 @@ typedef void (*pkNativeFn)(PKVM* vm);
 typedef void* (*pkReallocFn)(void* memory, size_t new_size, void* user_data);
 
 // Function callback to write [text] to stdout or stderr.
-typedef void (*pkWriteFn) (PKVM* vm, const char* text);
+typedef void (*pkWriteFn) (PKVM* vm, const std::string& text);
 
 // A function callback to read a line from stdin. The returned string shouldn't
-// contain a line ending (\n or \r\n). The returned string **must** be
-// allocated with pkRealloc() and the VM will claim the ownership of the
-// string.
-typedef char* (*pkReadFn) (PKVM* vm);
+// contain a line ending (\n or \r\n). Return std::nullopt to indicate failure.
+typedef std::optional<std::string> (*pkReadFn) (PKVM* vm);
 
 // A generic function thiat could be used by the PKVM to signal something to
 // the host application. The first argument is depend on the callback it's
@@ -113,17 +108,17 @@ typedef char* (*pkReadFn) (PKVM* vm);
 typedef void (*pkSignalFn) (void*);
 
 // Load and return the script. Called by the compiler to fetch initial source
-// code and source for import statements. Return NULL to indicate failure to
-// load. Otherwise the string **must** be allocated with pkRealloc() and
-// the VM will claim the ownership of the string.
-typedef char* (*pkLoadScriptFn) (PKVM* vm, const char* path);
+// code and source for import statements. Return std::nullopt to indicate
+// failure to load.
+typedef std::optional<std::string> (*pkLoadScriptFn) (PKVM* vm,
+                                                       const std::string& path);
 
 #ifndef PK_NO_DL
 
 // Load and return the native extension (*.dll, *.so) from the path, this will
 // then used to import the module with the pkImportImportDL function. On error
 // the function should return NULL and shouldn't use any error api function.
-typedef void* (*pkLoadDL) (PKVM* vm, const char* path);
+typedef void* (*pkLoadDL) (PKVM* vm, const std::string& path);
 
 // Native extension loader from the dynamic library. The handle should be vaiid
 // as long as the module handle is alive. On error the function should return
@@ -136,18 +131,17 @@ typedef void (*pkUnloadDL) (PKVM* vm, void* handle);
 
 #endif // PK_NO_DL
 
-// A function callback to resolve the import statement path. [from] path can
-// be either path to a script or a directory or NULL if [path] is relative to
-// cwd. If the path is a directory it'll always ends with a path separator
-// which could be either '/' or '\\' regardless of the system. Since pocketlang is
-// un aware of the system, to indicate that the path is a directory.
+// A function callback to resolve the import statement path. [from] is either
+// a path to a script or a directory, or an empty string if [path] is relative
+// to cwd. If the path is a directory it'll always ends with a path separator
+// which could be either '/' or '\\' regardless of the system. Since pocketlang
+// is un aware of the system, to indicate that the path is a directory.
 //
 // The return value should be a normalized absolute path of the [path]. Return
-// NULL to indicate failure to resolve. Othrewise the string **must** be
-// allocated with pkRealloc() and the VM will claim the ownership of the
-// string.
-typedef char* (*pkResolvePathFn) (PKVM* vm, const char* from,
-                                  const char* path);
+// std::nullopt to indicate failure to resolve.
+typedef std::optional<std::string> (*pkResolvePathFn) (PKVM* vm,
+                                                        const std::string& from,
+                                                        const std::string& path);
 
 // A function callback to allocate and return a new instance of the registered
 // class. Which will be called when the instance is constructed. The returned/
@@ -252,15 +246,16 @@ PK_PUBLIC void pkSetUserData(PKVM* vm, void* user_data);
 PK_PUBLIC void* pkGetUserData(const PKVM* vm);
 
 // Register a new builtin function with the given [name]. [docstring] could be
-// NULL or will always valid pointer since PKVM doesn't allocate a string for
+// empty or will always valid since PKVM doesn't allocate a string for
 // docstrings.
-PK_PUBLIC void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
-                                   int arity, const char* docstring);
+PK_PUBLIC void pkRegisterBuiltinFn(PKVM* vm, const std::string& name,
+                                   pkNativeFn fn,
+                                   int arity, const std::string& docstring);
 
 // Adds a new search paht to the VM, the path will be appended to the list of
 // search paths. Search path orders are the same as the registered order.
 // the last character of the path **must** be a path seperator '/' or '\\'.
-PK_PUBLIC void pkAddSearchPath(PKVM* vm, const char* path);
+PK_PUBLIC void pkAddSearchPath(PKVM* vm, const std::string& path);
 
 // Invoke pocketlang's allocator directly.  This function should be called 
 // when the host application want to send strings to the PKVM that are claimed
@@ -277,7 +272,7 @@ PK_PUBLIC void pkReleaseHandle(PKVM* vm, PkHandle* handle);
 
 // Add a new module named [name] to the [vm]. Note that the module shouldn't
 // already existed, otherwise an assertion will fail to indicate that.
-PK_PUBLIC PkHandle* pkNewModule(PKVM* vm, const char* name);
+PK_PUBLIC PkHandle* pkNewModule(PKVM* vm, const std::string& name);
 
 // Register the module to the PKVM's modules map, once after it can be
 // imported in other modules.
@@ -286,40 +281,40 @@ PK_PUBLIC void pkRegisterModule(PKVM* vm, PkHandle* module);
 // Add a native function to the given module. If [arity] is -1 that means
 // the function has variadic parameters and use pkGetArgc() to get the argc.
 // Note that the function will be added as a global variable of the module.
-// [docstring] is optional and could be omitted with NULL.
+// [docstring] is optional and could be omitted with an empty string.
 PK_PUBLIC void pkModuleAddFunction(PKVM* vm, PkHandle* module,
-                                   const char* name,
+                                   const std::string& name,
                                    pkNativeFn fptr, int arity,
-                                   const char* docstring);
+                                   const std::string& docstring);
 
 // Create a new class on the [module] with the [name] and return it.
 // If the [base_class] is NULL by default it'll set to "Object" class.
-// [docstring] is optional and could be omitted with NULL.
-PK_PUBLIC PkHandle* pkNewClass(PKVM* vm, const char* name,
+// [docstring] is optional and could be omitted with an empty string.
+PK_PUBLIC PkHandle* pkNewClass(PKVM* vm, const std::string& name,
                                PkHandle* base_class, PkHandle* module,
                                pkNewInstanceFn new_fn,
                                pkDeleteInstanceFn delete_fn,
-                               const char* docstring);
+                               const std::string& docstring);
 
 // Add a native method to the given class. If the [arity] is -1 that means
 // the method has variadic parameters and use pkGetArgc() to get the argc.
-// [docstring] is optional and could be omitted with NULL.
+// [docstring] is optional and could be omitted with an empty string.
 PK_PUBLIC void pkClassAddMethod(PKVM* vm, PkHandle* cls,
-                                const char* name,
+                                const std::string& name,
                                 pkNativeFn fptr, int arity,
-                                const char* docstring);
+                                const std::string& docstring);
 
 // It'll compile the pocket [source] for the module which result all the
 // functions and classes in that [source] to register on the module.
 PK_PUBLIC void pkModuleAddSource(PKVM* vm, PkHandle* module,
-                                 const char* source);
+                                 const std::string& source);
 
 // Run the source string. The [source] is expected to be valid till this
 // function returns.
-PK_PUBLIC PkResult pkRunString(PKVM* vm, const char* source);
+PK_PUBLIC PkResult pkRunString(PKVM* vm, const std::string& source);
 
 // Run the file at [path] relative to the current working directory.
-PK_PUBLIC PkResult pkRunFile(PKVM* vm, const char* path);
+PK_PUBLIC PkResult pkRunFile(PKVM* vm, const std::string& path);
 
 // FIXME:
 // Currently exit function will terminate the process which should exit from
@@ -334,7 +329,7 @@ PK_PUBLIC PkResult pkRunREPL(PKVM* vm);
 /*****************************************************************************/
 
 // Set a runtime error to VM.
-PK_PUBLIC void pkSetRuntimeError(PKVM* vm, const char* message);
+PK_PUBLIC void pkSetRuntimeError(PKVM* vm, const std::string& message);
 
 // Set a runtime error with C formated string.
 PK_PUBLIC void pkSetRuntimeErrorFmt(PKVM* vm, const char* fmt, ...);
@@ -364,9 +359,8 @@ PK_PUBLIC bool pkValidateSlotNumber(PKVM* vm, int slot, double* value);
 PK_PUBLIC bool pkValidateSlotInteger(PKVM* vm, int slot, int32_t* value);
 
 // Helper function to check if the argument at the [slot] slot is String and
-// if not set a runtime error.
-PK_PUBLIC bool pkValidateSlotString(PKVM* vm, int slot,
-                                    const char** value, uint32_t* length);
+// if not set a runtime error. The string value is written to [value].
+PK_PUBLIC bool pkValidateSlotString(PKVM* vm, int slot, std::string* value);
 
 // Helper function to check if the argument at the [slot] slot is of type
 // [type] and if not sets a runtime error.
@@ -401,11 +395,9 @@ PK_PUBLIC bool pkGetSlotBool(PKVM* vm, int index);
 // is not a boolean, an assertion will fail.
 PK_PUBLIC double pkGetSlotNumber(PKVM* vm, int index);
 
-// Returns the string at the [index] slot. The returned pointer is only valid
-// inside the native function that called this. Afterwards it may garbage
-// collected and become demangled. If the [length] is not NULL the length of
-// the string will be written.
-PK_PUBLIC const char* pkGetSlotString(PKVM* vm, int index, uint32_t* length);
+// Returns the string at the [index] slot as a std::string (copy).
+// If the value at the [index] is not a String, an assertion will fail.
+PK_PUBLIC std::string pkGetSlotString(PKVM* vm, int index);
 
 // Capture the variable at the [index] slot and return its handle. As long as
 // the handle is not released with `pkReleaseHandle()` the variable won't be
@@ -426,12 +418,7 @@ PK_PUBLIC void pkSetSlotBool(PKVM* vm, int index, bool value);
 PK_PUBLIC void pkSetSlotNumber(PKVM* vm, int index, double value);
 
 // Create a new String copying the [value] and set it to [index] slot.
-PK_PUBLIC void pkSetSlotString(PKVM* vm, int index, const char* value);
-
-// Create a new String copying the [value] and set it to [index] slot. Unlike
-// the above function it'll copy only the spicified length.
-PK_PUBLIC void pkSetSlotStringLength(PKVM* vm, int index,
-                                     const char* value, uint32_t length);
+PK_PUBLIC void pkSetSlotString(PKVM* vm, int index, const std::string& value);
 
 // Create a new string copying from the formated string and set it to [index]
 // slot.
@@ -495,22 +482,22 @@ PK_PUBLIC bool pkCallFunction(PKVM* vm, int fn, int argc, int argv, int ret);
 // Calls a [method] on the [instance] with [argc] argument where [argv] is the
 // slot of the first argument. [ret] is the slot index of the return value. if
 // [ret] < 0 the return value will be discarded.
-PK_PUBLIC bool pkCallMethod(PKVM* vm, int instance, const char* method,
+PK_PUBLIC bool pkCallMethod(PKVM* vm, int instance, const std::string& method,
                             int argc, int argv, int ret);
 
 // Get the attribute with [name] of the instance at the [instance] slot and
 // place it at the [index] slot. Return true on success.
-PK_PUBLIC bool pkGetAttribute(PKVM* vm, int instance, const char* name,
+PK_PUBLIC bool pkGetAttribute(PKVM* vm, int instance, const std::string& name,
                               int index);
 
 // Set the attribute with [name] of the instance at the [instance] slot to
 // the value at the [value] index slot. Return true on success.
 PK_PUBLIC bool pkSetAttribute(PKVM* vm, int instance,
-                              const char* name, int value);
+                              const std::string& name, int value);
 
 // Import a module with the [path] and place it at [index] slot. The path
 // sepearation should be '/'. Example: to import module "foo.bar" the [path]
 // should be "foo/bar". On failure, it'll set an error and return false.
-PK_PUBLIC bool pkImportModule(PKVM* vm, const char* path, int index);
+PK_PUBLIC bool pkImportModule(PKVM* vm, const std::string& path, int index);
 
 #endif // POCKETLANG_H

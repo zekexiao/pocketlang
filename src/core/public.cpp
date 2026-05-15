@@ -33,10 +33,10 @@
 #ifndef PK_NO_LIBS
   void registerLibs(PKVM* vm);
   void cleanupLibs(PKVM* vm);
-  char* pathResolveImport(PKVM* vm, const char* from, const char* path);
+  std::optional<std::string> pathResolveImport(PKVM* vm, const std::string& from, const std::string& path);
 
 #ifndef PK_NO_DL
-  void* osLoadDL(PKVM* vm, const char* path);
+  void* osLoadDL(PKVM* vm, const std::string& path);
   PkHandle* osImportDL(PKVM* vm, void* handle);
   void osUnloadDL(PKVM* vm, void* handle);
 #endif
@@ -84,10 +84,10 @@
 // configuration if the host doesn't provided any allocators for us.
 static void* defaultRealloc(void* memory, size_t new_size, void* _);
 
-static void stderrWrite(PKVM* vm, const char* text);
-static void stdoutWrite(PKVM* vm, const char* text);
-static char* stdinRead(PKVM* vm);
-static char* loadScript(PKVM* vm, const char* path);
+static void stderrWrite(PKVM* vm, const std::string& text);
+static void stdoutWrite(PKVM* vm, const std::string& text);
+static std::optional<std::string> stdinRead(PKVM* vm);
+static std::optional<std::string> loadScript(PKVM* vm, const std::string& path);
 
 void* pkRealloc(PKVM* vm, void* ptr, size_t size) {
   ASSERT(vm->config.realloc_fn != NULL, "PKVM's allocator was NULL.");
@@ -188,8 +188,8 @@ void pkSetUserData(PKVM* vm, void* user_data) {
   vm->config.user_data = user_data;
 }
 
-void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
-                         int arity, const char* docstring) {
+void pkRegisterBuiltinFn(PKVM* vm, const std::string& name, pkNativeFn fn,
+                         int arity, const std::string& docstring) {
   ASSERT(vm->builtins_count < BUILTIN_FN_CAPACITY,
         "Maximum builtin function limit reached, To increase the limit set "
         "BUILTIN_FN_CAPACITY and recompile.");
@@ -199,12 +199,12 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
   // O(1) However it'll decrease the compile time.
   for (int i = 0; i < vm->builtins_count; i++) {
     Closure* bfn = vm->builtins_funcs[i];
-    ASSERT(strcmp(bfn->fn->name, name) != 0,
+    ASSERT(strcmp(bfn->fn->name, name.c_str()) != 0,
            "Overriding existing function not supported yet.");
   }
 
-  Function* fptr = newFunction(vm, name, NULL,
-                               true, docstring, NULL);
+  Function* fptr = newFunction(vm, name.c_str(), NULL,
+                               true, docstring.c_str(), NULL);
   vm->vmPushTempRef(static_cast<Object*>(fptr)); // fptr.
   fptr->native = fn;
   fptr->arity = arity;
@@ -212,25 +212,22 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
   vm->vmPopTempRef(); // fptr.
 }
 
-void pkAddSearchPath(PKVM* vm, const char* path) {
-  CHECK_ARG_NULL(path);
-
-  size_t length = strlen(path);
+void pkAddSearchPath(PKVM* vm, const std::string& path) {
+  size_t length = path.size();
   ASSERT(length > 0, "Path size cannot be 0.");
 
-  char last = path[length - 1];
+  char last = path.back();
   ASSERT(last == '/' || last == '\\', "Path should ends with "
                                       "either '/' or '\\'.");
 
-  String* spath = newStringLength(vm, {path, length});
+  String* spath = newStringLength(vm, {path.data(), length});
   vm->vmPushTempRef(static_cast<Object*>(spath)); // spath.
   listAppend(vm, vm->search_paths, VAR_OBJ(spath));
   vm->vmPopTempRef(); // spath.
 }
 
-PkHandle* pkNewModule(PKVM* vm, const char* name) {
-  CHECK_ARG_NULL(name);
-  Module* module = newModuleInternal(vm, name);
+PkHandle* pkNewModule(PKVM* vm, const std::string& name) {
+  Module* module = newModuleInternal(vm, name.c_str());
 
   vm->vmPushTempRef(static_cast<Object*>(module)); // module.
   PkHandle* handle = vm->vmNewHandle(VAR_OBJ(module));
@@ -246,22 +243,21 @@ void pkRegisterModule(PKVM* vm, PkHandle* module) {
   vm->vmRegisterModule(module_, module_->name);
 }
 
-void pkModuleAddFunction(PKVM* vm, PkHandle* module, const char* name,
-                         pkNativeFn fptr, int arity, const char* docstring) {
+void pkModuleAddFunction(PKVM* vm, PkHandle* module, const std::string& name,
+                         pkNativeFn fptr, int arity, const std::string& docstring) {
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
   CHECK_ARG_NULL(fptr);
 
   moduleAddFunctionInternal(vm, (Module*)AS_OBJ(module->value()),
-                            name, fptr, arity, docstring);
+                            name.c_str(), fptr, arity, docstring.c_str());
 }
 
-PkHandle* pkNewClass(PKVM* vm, const char* name,
+PkHandle* pkNewClass(PKVM* vm, const std::string& name,
                      PkHandle* base_class, PkHandle* module,
                      pkNewInstanceFn new_fn,
                      pkDeleteInstanceFn delete_fn,
-                     const char* docstring) {
+                     const std::string& docstring) {
   CHECK_ARG_NULL(module);
-  CHECK_ARG_NULL(name);
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
 
   Class* super = vm->builtin_classes[PK_OBJECT];
@@ -270,9 +266,9 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
     super = (Class*)AS_OBJ(base_class->value());
   }
 
-  Class* class_ = newClass(vm, name,
+  Class* class_ = newClass(vm, name.c_str(),
                            super, (Module*)AS_OBJ(module->value()),
-                           docstring, NULL);
+                           docstring.c_str(), NULL);
   class_->new_fn = new_fn;
   class_->delete_fn = delete_fn;
 
@@ -283,8 +279,8 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
 }
 
 void pkClassAddMethod(PKVM* vm, PkHandle* cls,
-                      const char* name,
-                      pkNativeFn fptr, int arity, const char* docstring) {
+                      const std::string& name,
+                      pkNativeFn fptr, int arity, const std::string& docstring) {
   CHECK_ARG_NULL(cls);
   CHECK_ARG_NULL(fptr);
   CHECK_HANDLE_TYPE(cls, OBJ_CLASS);
@@ -295,8 +291,8 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
 
   Class* class_ = (Class*)AS_OBJ(cls->value());
 
-  Function* fn = newFunction(vm, name,
-                             class_->owner, true, docstring, NULL);
+  Function* fn = newFunction(vm, name.c_str(),
+                             class_->owner, true, docstring.c_str(), NULL);
   vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
 
   fn->arity = arity;
@@ -312,16 +308,15 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
   vm->vmPushTempRef(static_cast<Object*>(method)); // method.
   {
     pkBufferWrite(&class_->methods, vm, method);
-    if (!strcmp(name, CTOR_NAME)) class_->ctor = method;
+    if (!strcmp(name.c_str(), CTOR_NAME)) class_->ctor = method;
   }
   vm->vmPopTempRef(); // method.
 }
 
-void pkModuleAddSource(PKVM* vm, PkHandle* module, const char* source) {
+void pkModuleAddSource(PKVM* vm, PkHandle* module, const std::string& source) {
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
-  CHECK_ARG_NULL(source);
   // TODO: compiler options, maybe set to the vm and reuse it here.
-  compile(vm, (Module*) AS_OBJ(module->value()), source, NULL);
+  compile(vm, (Module*) AS_OBJ(module->value()), source.c_str(), NULL);
 }
 
 void pkReleaseHandle(PKVM* vm, PkHandle* handle) {
@@ -340,7 +335,7 @@ void pkReleaseHandle(PKVM* vm, PkHandle* handle) {
   DEALLOCATE(vm, handle, PkHandle);
 }
 
-PkResult pkRunString(PKVM* vm, const char* source) {
+PkResult pkRunString(PKVM* vm, const std::string& source) {
 
   PkResult result = PK_RESULT_SUCCESS;
 
@@ -349,7 +344,7 @@ PkResult pkRunString(PKVM* vm, const char* source) {
   vm->vmPushTempRef(static_cast<Object*>(module)); // module.
   {
     module->path = newString(vm, "@(String)");
-    result = compile(vm, module, source, NULL);
+    result = compile(vm, module, source.c_str(), NULL);
     if (result != PK_RESULT_SUCCESS) return result;
 
     // Module initialized needs to be set to true just before executing their
@@ -367,7 +362,7 @@ PkResult pkRunString(PKVM* vm, const char* source) {
   return result;
 }
 
-PkResult pkRunFile(PKVM* vm, const char* path) {
+PkResult pkRunFile(PKVM* vm, const std::string& path) {
 
   // Note: The file may have been imported by some other script and cached in
   // the VM's scripts cache. But we're not using that instead, we'll recompile
@@ -380,12 +375,12 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
   Module* module = NULL;
 
   // Resolve the path.
-  char* resolved_ = NULL;
+  std::optional<std::string> resolved_;
   if (vm->config.resolve_path_fn != NULL) {
-    resolved_ = vm->config.resolve_path_fn(vm, NULL, path);
+    resolved_ = vm->config.resolve_path_fn(vm, "", path);
   }
 
-  if (resolved_ == NULL) {
+  if (!resolved_.has_value()) {
     // FIXME: Error print should be moved and check for ascii color codes.
     if (vm->config.stderr_write != NULL) {
       vm->config.stderr_write(vm, "Error finding script at \"");
@@ -398,18 +393,17 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
   module = newModule(vm);
   vm->vmPushTempRef(static_cast<Object*>(module)); // module.
   {
-    // Set module path and and deallocate resolved.
-    String* script_path = newString(vm, resolved_);
+    // Set module path from resolved string.
+    String* script_path = newString(vm, resolved_->c_str());
     vm->vmPushTempRef(static_cast<Object*>(script_path)); // script_path.
-    pkRealloc(vm, resolved_, 0);
     module->path = script_path;
     vm->vmPopTempRef(); // script_path.
 
     initializeModule(vm, module, true);
 
-    const char* _path = module->path->data;
-    char* source = vm->config.load_script_fn(vm, _path);
-    if (source == NULL) {
+    const std::string _path = module->path->data;
+    auto source = vm->config.load_script_fn(vm, _path);
+    if (!source.has_value()) {
       result = PK_RESULT_COMPILE_ERROR;
       // FIXME: Error print should be moved and check for ascii color codes.
       if (vm->config.stderr_write != NULL) {
@@ -418,8 +412,7 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
         vm->config.stderr_write(vm, "\"\n");
       }
     } else {
-      result = compile(vm, module, source, NULL);
-      pkRealloc(vm, source, 0);
+      result = compile(vm, module, source->c_str(), NULL);
     }
 
     if (result == PK_RESULT_SUCCESS) {
@@ -444,11 +437,9 @@ PkResult pkRunFile(PKVM* vm, const char* path) {
 //
 // Returns true if the string is empty, used to check if the input line is
 // empty to skip compilation of empty string in the bellow repl mode.
-static inline bool isStringEmpty(const char* line) {
-  ASSERT(line != NULL, OOPS);
-
-  for (const char* c = line; *c != '\0'; c++) {
-    if (!utilIsSpace(*c)) return false;
+static inline bool isStringEmpty(const std::string& line) {
+  for (char c : line) {
+    if (!utilIsSpace(c)) return false;
   }
   return true;
 }
@@ -504,33 +495,32 @@ PkResult pkRunREPL(PKVM* vm) {
     printfn(vm, listening);
 
     // Read a line from stdin and add the line to the lines buffer.
-    char* line = inputfn(vm);
-    if (line == NULL) {
+    auto line_opt = inputfn(vm);
+    if (!line_opt.has_value()) {
       if (printerrfn) printerrfn(vm, "REPL failed to input.");
       result = PK_RESULT_RUNTIME_ERROR;
       break;
     }
 
+    const std::string& line = line_opt.value();
+
     // If the line contains EOF, REPL should be stopped.
-    size_t line_length = strlen(line);
-    if (line_length >= 1 && *(line + line_length - 1) == EOF) {
+    size_t line_length = line.size();
+    if (line_length >= 1 && line.back() == (char)EOF) {
       printfn(vm, "\n");
       result = PK_RESULT_SUCCESS;
-      pkRealloc(vm, line, 0);
       break;
     }
 
     // If the line is empty, we don't have to compile it.
     if (isStringEmpty(line)) {
       if (need_more_lines) ASSERT(lines.count != 0, OOPS);
-      pkRealloc(vm, line, 0);
       continue;
     }
 
     // Add the line to the lines buffer.
     if (lines.count != 0) pkBufferWrite(&lines, vm, '\n');
-    pkByteBufferAddString(&lines, vm, {line, line_length});
-    pkRealloc(vm, line, 0);
+    pkByteBufferAddString(&lines, vm, {line.data(), line_length});
     pkBufferWrite(&lines, vm, '\0');
 
     // Compile the buffer to the module.
@@ -567,9 +557,9 @@ PkResult pkRunREPL(PKVM* vm) {
 /* RUNTIME                                                                   */
 /*****************************************************************************/
 
-void pkSetRuntimeError(PKVM* vm, const char* message) {
+void pkSetRuntimeError(PKVM* vm, const std::string& message) {
   CHECK_FIBER_EXISTS(vm);
-  VM_SET_ERROR(vm, newString(vm, message));
+  VM_SET_ERROR(vm, newString(vm, message.c_str()));
 }
 
 void pkSetRuntimeErrorFmt(PKVM* vm, const char* fmt, ...) {
@@ -666,8 +656,7 @@ bool pkValidateSlotInteger(PKVM* vm, int slot, int32_t* value) {
   return true;
 }
 
-bool pkValidateSlotString(PKVM* vm, int slot, const char** value,
-                                    uint32_t* length) {
+bool pkValidateSlotString(PKVM* vm, int slot, std::string* value) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(slot);
 
@@ -677,8 +666,7 @@ bool pkValidateSlotString(PKVM* vm, int slot, const char** value,
     return false;
   }
   String* str = (String*)AS_OBJ(val);
-  if (value) *value = str->data;
-  if (length) *length = str->length;
+  if (value) *value = std::string(str->data, str->length);
   return true;
 }
 
@@ -750,13 +738,13 @@ double pkGetSlotNumber(PKVM* vm, int index) {
   return AS_NUM(value);
 }
 
-const char* pkGetSlotString(PKVM* vm, int index, uint32_t* length) {
+std::string pkGetSlotString(PKVM* vm, int index) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
   Var value = SLOT(index);
   ASSERT(IS_OBJ_TYPE(value, OBJ_STRING), "Slot value wasn't a String.");
-  if (length != NULL) *length = ((String*)AS_OBJ(value))->length;
-  return ((String*)AS_OBJ(value))->data;
+  String* str = (String*)AS_OBJ(value);
+  return std::string(str->data, str->length);
 }
 
 PkHandle* pkGetSlotHandle(PKVM* vm, int index) {
@@ -798,17 +786,16 @@ void pkSetSlotNumber(PKVM* vm, int index, double value) {
   SET_SLOT(index, VAR_NUM(value));
 }
 
-void pkSetSlotString(PKVM* vm, int index, const char* value) {
+void pkSetSlotString(PKVM* vm, int index, const std::string& value) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, VAR_OBJ(newString(vm, value)));
+  SET_SLOT(index, VAR_OBJ(newStringLength(vm, {value.data(), value.size()})));
 }
 
-void pkSetSlotStringLength(PKVM* vm, int index,
-                                     const char* value, uint32_t length) {
+void pkSetSlotStringLength(PKVM* vm, int index, const std::string& value) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, VAR_OBJ(newStringLength(vm, {value, length})));
+  SET_SLOT(index, VAR_OBJ(newStringLength(vm, {value.data(), value.size()})));
 }
 
 void pkSetSlotStringFmt(PKVM* vm, int index, const char* fmt, ...) {
@@ -834,13 +821,12 @@ uint32_t pkGetSlotHash(PKVM* vm, int index) {
   return varHashValue(value);
 }
 
-bool pkSetAttribute(PKVM* vm, int instance, const char* name, int value) {
+bool pkSetAttribute(PKVM* vm, int instance, const std::string& name, int value) {
   CHECK_FIBER_EXISTS(vm);
-  CHECK_ARG_NULL(name);
   VALIDATE_SLOT_INDEX(instance);
   VALIDATE_SLOT_INDEX(value);
 
-  String* sname = newString(vm, name);
+  String* sname = newString(vm, name.c_str());
   vm->vmPushTempRef(static_cast<Object*>(sname)); // sname.
   varSetAttrib(vm, SLOT(instance), sname, SLOT(value));
   vm->vmPopTempRef(); // sname.
@@ -848,14 +834,13 @@ bool pkSetAttribute(PKVM* vm, int instance, const char* name, int value) {
   return !VM_HAS_ERROR(vm);
 }
 
-bool pkGetAttribute(PKVM* vm, int instance, const char* name,
+bool pkGetAttribute(PKVM* vm, int instance, const std::string& name,
                               int index) {
   CHECK_FIBER_EXISTS(vm);
-  CHECK_ARG_NULL(name);
   VALIDATE_SLOT_INDEX(instance);
   VALIDATE_SLOT_INDEX(index);
 
-  String* sname = newString(vm, name);
+  String* sname = newString(vm, name.c_str());
   vm->vmPushTempRef(static_cast<Object*>(sname)); // sname.
   SET_SLOT(index, varGetAttrib(vm, SLOT(instance), sname));
   vm->vmPopTempRef(); // sname.
@@ -1004,10 +989,9 @@ bool pkCallFunction(PKVM* vm, int fn, int argc, int argv, int ret) {
   return false;
 }
 
-bool pkCallMethod(PKVM* vm, int instance, const char* method,
+bool pkCallMethod(PKVM* vm, int instance, const std::string& method,
                             int argc, int argv, int ret) {
   CHECK_FIBER_EXISTS(vm);
-  CHECK_ARG_NULL(method);
   VALIDATE_SLOT_INDEX(instance);
   if (argc != 0) {
     VALIDATE_SLOT_INDEX(argv);
@@ -1016,7 +1000,7 @@ bool pkCallMethod(PKVM* vm, int instance, const char* method,
   if (ret >= 0) VALIDATE_SLOT_INDEX(ret);
 
   bool is_method = false;
-  String* smethod = newString(vm, method);
+  String* smethod = newString(vm, method.c_str());
   vm->vmPushTempRef(static_cast<Object*>(smethod)); // smethod.
   Var callable = getMethod(vm, SLOT(instance), smethod,
                           &is_method);
@@ -1041,7 +1025,7 @@ bool pkCallMethod(PKVM* vm, int instance, const char* method,
   }
 
   VM_SET_ERROR(vm, stringFormat(vm, "Instance has no method named '$'.",
-                                method));
+                                method.c_str()));
   return false;
 }
 
@@ -1051,11 +1035,11 @@ void pkPlaceSelf(PKVM* vm, int index) {
   SET_SLOT(index, vm->fiber->self);
 }
 
-bool pkImportModule(PKVM* vm, const char* path, int index) {
+bool pkImportModule(PKVM* vm, const std::string& path, int index) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
 
-  String* path_ = newString(vm, path);
+  String* path_ = newString(vm, path.c_str());
   vm->vmPushTempRef(static_cast<Object*>(path_)); // path_
   Var module = vm->vmImportModule(NULL, path_);
   vm->vmPopTempRef(); // path_
@@ -1092,52 +1076,42 @@ static void* defaultRealloc(void* memory, size_t new_size, void* _) {
   return realloc(memory, new_size);
 }
 
-void stderrWrite(PKVM* vm, const char* text) {
-  fprintf(stderr, "%s", text);
+void stderrWrite(PKVM* vm, const std::string& text) {
+  fprintf(stderr, "%s", text.c_str());
 }
 
-void stdoutWrite(PKVM* vm, const char* text) {
-  fprintf(stdout, "%s", text);
+void stdoutWrite(PKVM* vm, const std::string& text) {
+  fprintf(stdout, "%s", text.c_str());
 }
 
-static char* stdinRead(PKVM* vm) {
-
-  pkByteBuffer buff;
-  pkBufferInit(&buff);
+static std::optional<std::string> stdinRead(PKVM* vm) {
+  std::string result;
   char c;
   do {
     c = (char) fgetc(stdin);
     if (c == '\n') break;
-    pkBufferWrite(&buff, vm, (uint8_t)c);
-  } while (c != EOF);
-  pkBufferWrite(&buff, vm, '\0');
-
-  char* str = (char*)pkRealloc(vm, NULL, buff.count);
-  memcpy(str, buff.data, buff.count);
-  pkBufferClear(&buff, vm);
-  return str;
+    result += c;
+  } while (c != (char)EOF);
+  return result;
 }
 
-static char* loadScript(PKVM* vm, const char* path) {
+static std::optional<std::string> loadScript(PKVM* vm, const std::string& path) {
 
-  FILE* file = fopen(path, "r");
-  if (file == NULL) return NULL;
+  FILE* file = fopen(path.c_str(), "r");
+  if (file == NULL) return std::nullopt;
 
   // Get the source length. In windows the ftell will includes the cariage
   // return when using ftell with fseek. But that's not an issue since
   // we'll be allocating more memory than needed for fread().
   fseek(file, 0, SEEK_END);
-  size_t file_size = ftell(file);
+  size_t file_size = (size_t) ftell(file);
   fseek(file, 0, SEEK_SET);
 
-  // Allocate string + 1 for the NULL terminator.
-  char* buff = (char*)pkRealloc(vm, NULL, file_size + 1);
-  ASSERT(buff != NULL, "pkRealloc failed.");
-
+  std::string buff(file_size, '\0');
   clearerr(file);
-  size_t read = fread(buff, sizeof(char), file_size, file);
+  size_t read = fread(buff.data(), sizeof(char), file_size, file);
   ASSERT(read <= file_size, "fread() failed.");
-  buff[read] = '\0';
+  buff.resize(read);
   fclose(file);
 
   return buff;

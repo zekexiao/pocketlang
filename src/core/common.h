@@ -17,6 +17,7 @@
 
 #include <stdio.h> //< Only needed here for ASSERT() macro and for release mode
                    //< TODO; macro use this to print a crash report.
+#include <string>
 
 #define TOSTRING(x) #x
 #define STRINGIFY(x) TOSTRING(x)
@@ -111,8 +112,8 @@
 #define TODO __ASSERT(false, "TODO: It hasn't implemented yet.")
 #define OOPS "Oops a bug!! report please."
 
-// Returns the docstring of the function, which is a static const char* defined
-// just above the function by the DEF() macro below.
+// Returns the docstring of the function, which is a static const std::string
+// defined just above the function by the DEF() macro below.
 #define DOCSTRING(fn) _pk_doc_##fn
 
 // A macro to declare a function, with docstring, which is defined as
@@ -120,7 +121,7 @@
 // [signature] is the function name and parameter names with type information.
 // ex: `io.open(path:String, mode:String) -> io.File`
 #define DEF(fn, signature, docstring)                            \
-  static const char* DOCSTRING(fn) = signature "\n\n" docstring; \
+  static const std::string DOCSTRING(fn) = signature "\n\n" docstring; \
   static void fn(PKVM* vm)
 
 #endif //PK_COMMON_H
