@@ -1768,7 +1768,7 @@ Var varMultiply(PKVM* vm, Var v1, Var v2, bool inplace) {
       if (right < 0) return VAR_OBJ(newString(vm, ""));
 
       pkByteBuffer buff;
-      pkByteBufferInit(&buff);
+      pkBufferInit(&buff);
       pkBufferReserve(&buff, vm, left->length * (uint32_t) right);
       for (int i = 0; i < (int) right; i++) {
         memcpy(buff.data + buff.count, left->data, left->length);
