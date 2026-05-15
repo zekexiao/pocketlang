@@ -5,6 +5,8 @@
  */
 
 #include <math.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "libs.h"
@@ -163,9 +165,9 @@ bool osGetExeFilePath(char* buff, int size) {
   return true;
 
 #elif defined(_PKOS_LINUX_)
-    char tmp[MAX_PATH_LEN];
-    sprintf(tmp, "/proc/%d/exe", getpid());
-    int len = readlink(tmp, buff, size);
+    const std::string proc_path = std::format("/proc/{}/exe", getpid());
+    int len = readlink(proc_path.c_str(), buff, size);
+    if (len <= 0 || len >= size) return false;
     buff[len] = '\0';
     return true;
 

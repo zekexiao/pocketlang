@@ -54,12 +54,15 @@ private:
 
 };
 
-// This will take source code as a cstring, compiles it to pocketlang bytecodes
-// and append them to the module's implicit main function. On a successfull
-// compilation it'll return PK_RESULT_SUCCESS, otherwise it'll return
-// PK_RESULT_COMPILE_ERROR but if repl_mode set in the [options],  and we've
-// reached and unexpected EOF it'll return PK_RESULT_UNEXPECTED_EOF.
-PkResult compile(PKVM* vm, Module* module, const char* source,
+// This will take source code as a string_view, compiles it to pocketlang
+// bytecodes and append them to the module's implicit main function. The
+// [source] view must point to a null-terminated buffer (i.e. source.data()[
+// source.size()] == '\0') because the lexer relies on '\0' as the EOF
+// sentinel. On a successfull compilation it'll return PK_RESULT_SUCCESS,
+// otherwise it'll return PK_RESULT_COMPILE_ERROR but if repl_mode set in the
+// [options], and we've reached and unexpected EOF it'll return
+// PK_RESULT_UNEXPECTED_EOF.
+PkResult compile(PKVM* vm, Module* module, std::string_view source,
                  const CompileOptions* options);
 
 // Mark the heap allocated objects of the compiler at the garbage collection

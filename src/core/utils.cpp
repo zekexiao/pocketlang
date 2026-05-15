@@ -116,7 +116,7 @@ uint32_t utilHashNumber(double num) {
 }
 
 // Function implementation, see utils.h for description.
-uint32_t utilHashString(const char* string) {
+uint32_t utilHashString(std::string_view sv) {
   // FNV-1a hash. See: http://www.isthe.com/chongo/tech/comp/fnv/
 
 #define FNV_prime_32_bit 16777619u
@@ -124,8 +124,8 @@ uint32_t utilHashString(const char* string) {
 
   uint32_t hash = FNV_offset_basis_32_bit;
 
-  for (const char* c = string; *c != '\0'; c++) {
-    hash ^= *c;
+  for (unsigned char c : sv) {
+    hash ^= c;
     hash *= FNV_prime_32_bit;
   }
 

@@ -258,8 +258,8 @@ using pkClosureBuffer = pkBuffer<Closure*>;
 // Add all the characters to the buffer, byte buffer can also be used as a
 // buffer to write string (like a string stream). Note that this will not
 // add a null byte '\0' at the end.
-void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, const char* str,
-                           uint32_t length);
+void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm,
+                           std::string_view text);
 
 // Add formated string to the byte buffer.
 void pkByteBufferAddStringFmt(pkByteBuffer* self, PKVM* vm,
@@ -301,8 +301,7 @@ public:
   String(String&&) = delete;
   String& operator=(String&&) = delete;
 
-  static String* create(PKVM* vm, const char* text, uint32_t length);
-  static String* create(PKVM* vm, const char* text);
+  static String* create(PKVM* vm, std::string_view text);
 
   String* lower(PKVM* vm);
   String* upper(PKVM* vm);
@@ -735,7 +734,7 @@ public:
 
 void varInitObject(Object* self, PKVM* vm, ObjectType type);
 
-String* newStringLength(PKVM* vm, const char* text, uint32_t length);
+String* newStringLength(PKVM* vm, std::string_view text);
 
 String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args);
 
@@ -743,15 +742,14 @@ String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args);
 // make the implementation a static inline function, it's totally okey to
 // define a function inside a header as long as it's static (but not a fan).
 #if 0 // Function implementation.
-  // Allocate new string using the cstring [text].
+  // Allocate new string using the null-terminated cstring [text].
   static inline String* newString(PKVM* vm, const char* text) {
-    uint32_t length = (text == NULL) ? 0 : (uint32_t)strlen(text);
-    return newStringLength(vm, text, length);
+    return newStringLength(vm,
+                           text ? std::string_view(text) : std::string_view{});
   }
 #else // Macro implementation.
-  // Allocate new string using the cstring [text].
-  #define newString(vm, text) \
-    (newStringLength(vm, text, (!(text)) ? 0 : (uint32_t)strlen(text)))
+  // Allocate new string using the null-terminated cstring [text].
+  #define newString(vm, text) newStringLength(vm, (text))
 #endif
 
 List* newList(PKVM* vm, uint32_t size);
@@ -776,7 +774,7 @@ Fiber* newFiber(PKVM* vm, Closure* closure);
 // C string liteals).
 //
 // Allocate a new function and return it.
-Function* newFunction(PKVM* vm, const char* name, int length,
+Function* newFunction(PKVM* vm, std::string_view name,
                       Module* owner,
                       bool is_native, const char* docstring,
                       int* fn_index);
@@ -784,7 +782,7 @@ Function* newFunction(PKVM* vm, const char* name, int length,
 // If the module is not NULL, the name and the class object will be added to
 // the module's constant pool. The class will be added to the modules global
 // as well.
-Class* newClass(PKVM* vm, const char* name, int length,
+Class* newClass(PKVM* vm, std::string_view name,
                 Class* super, Module* module,
                 const char* docstring, int* cls_index);
 
@@ -843,7 +841,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep);
 // usage and it has 2 formated characters (just like wren does).
 // $ - a C string
 // @ - a String object
-String* stringFormat(PKVM* vm, const char* fmt, ...);
+String* stringFormat(PKVM* vm, std::string_view fmt, ...);
 
 // Create a new string by joining the 2 given string and return the result.
 // Which would be faster than using "@@" format.
@@ -899,8 +897,8 @@ uint32_t moduleAddConstant(PKVM* vm, Module* module, Var value);
 // Add a string literal to the module's constant buffer if not already exists
 // and return it. If the [index] isn't NULL, the index of the string will be
 // written on it.
-String* moduleAddString(Module* module, PKVM* vm, const char* name,
-                        uint32_t length, int* index);
+String* moduleAddString(Module* module, PKVM* vm, std::string_view name,
+                        int* index);
 
 // Returns a string at the index of the module, if the index is invalid or the
 // constant at the index is not a string, it'll return NULL. (however if the
@@ -910,12 +908,12 @@ String* moduleGetStringAt(Module* module, int index);
 // Set the global [value] to the [module] and return its index. If the global
 // [name] already exists it'll update otherwise one will be created.
 uint32_t moduleSetGlobal(PKVM* vm, Module* module,
-                         const char* name, uint32_t length,
+                         std::string_view name,
                          Var value);
 
 // Search for the [name] in the module's globals and return it's index.
 // If not found it'll return -1.
-int moduleGetGlobalIndex(Module* module, const char* name, uint32_t length);
+int moduleGetGlobalIndex(Module* module, std::string_view name);
 
 // This will allocate a new implicit main function for the module and assign to
 // the module's body attribute. And the attribute initialized will be set to
@@ -943,15 +941,15 @@ PkVarType getObjPkVarType(ObjectType type);
 ObjectType getPkVarObjType(PkVarType type);
 
 // Returns the type name of the PkVarType enum value.
-const char* getPkVarTypeName(PkVarType type);
+std::string_view getPkVarTypeName(PkVarType type);
 
 // Returns the type name of the ObjectType enum value.
-const char* getObjectTypeName(ObjectType type);
+std::string_view getObjectTypeName(ObjectType type);
 
 // Returns the type name of the var [v]. If [v] is an instance of a class
-// the return pointer will be the class name string's data, which would be
-// dangling if [v] is garbage collected.
-const char* varTypeName(Var v);
+// the return value will be a view into the class name string's data, which
+// would dangle if [v] is garbage collected.
+std::string_view varTypeName(Var v);
 
 // Returns the PkVarType of the first class varaible [v].
 PkVarType getVarType(Var v);

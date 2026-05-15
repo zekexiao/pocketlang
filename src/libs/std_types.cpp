@@ -130,7 +130,7 @@ DEF(_bytebuffWrite,
     case PK_STRING: {
       uint32_t length;
       const char* str = pkGetSlotString(vm, 1, &length);
-      pkByteBufferAddString(self, vm, str, length);
+      pkByteBufferAddString(self, vm, {str, length});
       pkSetSlotNumber(vm, 0, (double) length);
       return;
     }
@@ -144,8 +144,9 @@ DEF(_bytebuffWrite,
   }
 
   //< Pocketlang internal function.
-  const char* name = getPkVarTypeName(type);
-  pkSetRuntimeErrorFmt(vm, "Object %s cannot be written to ByteBuffer.", name);
+  std::string_view name = getPkVarTypeName(type);
+  pkSetRuntimeErrorFmt(vm, "Object %.*s cannot be written to ByteBuffer.",
+                       (int)name.size(), name.data());
 
 }
 

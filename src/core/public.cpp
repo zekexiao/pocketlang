@@ -7,6 +7,8 @@
 // This file contains all the pocketlang public function implementations.
 
 #include <math.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include <pocketlang.h>
@@ -201,7 +203,7 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
            "Overriding existing function not supported yet.");
   }
 
-  Function* fptr = newFunction(vm, name, (int) strlen(name), NULL,
+  Function* fptr = newFunction(vm, name, NULL,
                                true, docstring, NULL);
   vm->vmPushTempRef(static_cast<Object*>(fptr)); // fptr.
   fptr->native = fn;
@@ -220,7 +222,7 @@ void pkAddSearchPath(PKVM* vm, const char* path) {
   ASSERT(last == '/' || last == '\\', "Path should ends with "
                                       "either '/' or '\\'.");
 
-  String* spath = newStringLength(vm, path, (uint32_t) length);
+  String* spath = newStringLength(vm, {path, length});
   vm->vmPushTempRef(static_cast<Object*>(spath)); // spath.
   listAppend(vm, vm->search_paths, VAR_OBJ(spath));
   vm->vmPopTempRef(); // spath.
@@ -268,7 +270,7 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
     super = (Class*)AS_OBJ(base_class->value());
   }
 
-  Class* class_ = newClass(vm, name, (int)strlen(name),
+  Class* class_ = newClass(vm, name,
                            super, (Module*)AS_OBJ(module->value()),
                            docstring, NULL);
   class_->new_fn = new_fn;
@@ -293,7 +295,7 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
 
   Class* class_ = (Class*)AS_OBJ(cls->value());
 
-  Function* fn = newFunction(vm, name, (int)strlen(name),
+  Function* fn = newFunction(vm, name,
                              class_->owner, true, docstring, NULL);
   vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
 
@@ -458,8 +460,7 @@ static inline bool isStringEmpty(const char* line) {
 // repl mode.
 Closure* moduleGetMainFunction(PKVM* vm, Module* module) {
 
-  int main_index = moduleGetGlobalIndex(module, IMPLICIT_MAIN_NAME,
-                                        (uint32_t) strlen(IMPLICIT_MAIN_NAME));
+  int main_index = moduleGetGlobalIndex(module, IMPLICIT_MAIN_NAME);
   if (main_index == -1) return NULL;
   ASSERT_INDEX(main_index, (int) module->globals.count);
   Var main_fn = module->globals.data[main_index];
@@ -528,7 +529,7 @@ PkResult pkRunREPL(PKVM* vm) {
 
     // Add the line to the lines buffer.
     if (lines.count != 0) pkBufferWrite(&lines, vm, '\n');
-    pkByteBufferAddString(&lines, vm, line, (uint32_t) line_length);
+    pkByteBufferAddString(&lines, vm, {line, line_length});
     pkRealloc(vm, line, 0);
     pkBufferWrite(&lines, vm, '\0');
 
@@ -596,15 +597,15 @@ bool pkCheckArgcRange(PKVM* vm, int argc, int min, int max) {
   ASSERT(min <= max, "invalid argc range (min > max).");
 
   if (argc < min) {
-    char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", min);
+    const std::string buff = std::format("{}", min);
     VM_SET_ERROR(vm, stringFormat(vm, "Expected at least %s argument(s).",
-                                       buff));
+                                       buff.c_str()));
     return false;
 
   } else if (argc > max) {
-    char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", max);
+    const std::string buff = std::format("{}", max);
     VM_SET_ERROR(vm, stringFormat(vm, "Expected at most %s argument(s).",
-                                       buff));
+                                       buff.c_str()));
     return false;
   }
 
@@ -614,10 +615,9 @@ bool pkCheckArgcRange(PKVM* vm, int argc, int min, int max) {
 // Set error for incompatible type provided as an argument. (TODO: got type).
 #define ERR_INVALID_SLOT_TYPE(slot, ty_name)                       \
   do {                                                             \
-    char buff[STR_INT_BUFF_SIZE];                                  \
-    sprintf(buff, "%d", slot);                                     \
+    const std::string buff = std::format("{}", slot);              \
     VM_SET_ERROR(vm, stringFormat(vm, "Expected a '$' at slot $.", \
-                                      ty_name, buff));             \
+                                      ty_name, buff.c_str()));     \
   } while (false)
 
 // FIXME: If the user needs just the boolean value of the object, they should
@@ -686,7 +686,7 @@ bool pkValidateSlotType(PKVM* vm, int slot, PkVarType type) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(slot);
   if (getVarType(ARG(slot)) != type) {
-    ERR_INVALID_SLOT_TYPE(slot, getPkVarTypeName(type));
+    ERR_INVALID_SLOT_TYPE(slot, getPkVarTypeName(type).data());
     return false;
   }
 
@@ -808,7 +808,7 @@ void pkSetSlotStringLength(PKVM* vm, int index,
                                      const char* value, uint32_t length) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, VAR_OBJ(newStringLength(vm, value, length)));
+  SET_SLOT(index, VAR_OBJ(newStringLength(vm, {value, length})));
 }
 
 void pkSetSlotStringFmt(PKVM* vm, int index, const char* fmt, ...) {

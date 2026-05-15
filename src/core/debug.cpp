@@ -5,6 +5,8 @@
  */
 
 #include <stdio.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "debug.h"
@@ -40,8 +42,8 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
     buff.count = 0;
     writefn(vm, path);
     writefn(vm, ":");
-    snprintf((char*)buff.data, buff.capacity, "%d", line);
-    writefn(vm, (char*)buff.data);
+    const std::string line_str = std::format("{}", line);
+    writefn(vm, line_str.c_str());
     _printRed(vm, " error: ");
 
     // Print the error message.
@@ -88,9 +90,9 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
     while (curr_line < end) {
 
       buff.count = 0;
-      snprintf((char*)buff.data, buff.capacity,
-               "%*d", line_number_width, curr_line);
-      writefn(vm, (char*)buff.data);
+      const std::string line_no_str =
+        std::format("{:>{}}", curr_line, line_number_width);
+      writefn(vm, line_no_str.c_str());
       writefn(vm, " | ");
 
       if (curr_line != line) {
@@ -99,8 +101,8 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         while (*c != '\0' && *c != '\n') c++;
 
         buff.count = 0;
-        pkByteBufferAddString(&buff, vm, line_start,
-                              (uint32_t)(c - line_start));
+        pkByteBufferAddString(&buff, vm,
+                              {line_start, (size_t)(c - line_start)});
         pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
         writefn(vm, "\n");
@@ -111,15 +113,15 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
 
         // Print line till error.
         buff.count = 0;
-        pkByteBufferAddString(&buff, vm, line_start,
-                              (uint32_t)(at - line_start));
+        pkByteBufferAddString(&buff, vm,
+                              {line_start, (size_t)(at - line_start)});
         pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
 
         // Print error token - if the error token is a new line ignore it.
         if (*at != '\n') {
           buff.count = 0;
-          pkByteBufferAddString(&buff, vm, at, length);
+          pkByteBufferAddString(&buff, vm, {at, (size_t)length});
           pkBufferWrite(&buff, vm, '\0');
           _printRed(vm, (char*)buff.data);
 
@@ -138,8 +140,8 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
           // Print rest of the line.
           if (c != tail_start) {
             buff.count = 0;
-            pkByteBufferAddString(&buff, vm, tail_start,
-                                  (uint32_t)(c - tail_start));
+            pkByteBufferAddString(&buff, vm,
+                                  {tail_start, (size_t)(c - tail_start)});
             pkBufferWrite(&buff, vm, '\0');
             writefn(vm, (char*)buff.data);
           }
@@ -151,7 +153,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         // White space before error token.
         buff.count = 0;
         pkBufferFill(&buff, vm, ' ', line_number_width);
-        pkByteBufferAddString(&buff, vm, " | ", 3);
+        pkByteBufferAddString(&buff, vm, " | ");
 
         for (const char* c2 = line_start; c2 < at; c2++) {
           char white_space = (*c2 == '\t') ? '\t' : ' ';
@@ -194,9 +196,8 @@ static void _reportStackFrame(PKVM* vm, CallFrame* frame) {
   if (fn->owner->path == NULL) {
 
     writefn(vm, "  [at:");
-    char buff[STR_INT_BUFF_SIZE];
-    sprintf(buff, "%2d", line);
-    writefn(vm, buff);
+    const std::string line_str = std::format("{:>2}", line);
+    writefn(vm, line_str.c_str());
     writefn(vm, "] ");
     writefn(vm, fn->name);
     writefn(vm, "()\n");
@@ -207,9 +208,8 @@ static void _reportStackFrame(PKVM* vm, CallFrame* frame) {
     writefn(vm, "() [");
     writefn(vm, fn->owner->path->data);
     writefn(vm, ":");
-    char buff[STR_INT_BUFF_SIZE];
-    sprintf(buff, "%d", line);
-    writefn(vm, buff);
+    const std::string line_str = std::format("{}", line);
+    writefn(vm, line_str.c_str());
     writefn(vm, "]\n");
   }
 }
@@ -237,9 +237,8 @@ void reportRuntimeError(PKVM* vm, Fiber* fiber) {
 
     int skipped_count = fiber->frame_count - max_dump_frames * 2;
     writefn(vm, "  ...  skipping ");
-    char buff[STR_INT_BUFF_SIZE];
-    sprintf(buff, "%d", skipped_count);
-    writefn(vm, buff);
+    const std::string skipped_count_str = std::format("{}", skipped_count);
+    writefn(vm, skipped_count_str.c_str());
     writefn(vm, " stack frames\n");
 
     for (int i = max_dump_frames; i >= 0; i--) {
@@ -282,12 +281,10 @@ void dumpFunctionCode(PKVM* vm, Function* func) {
 
 #define _PRINT_INT(value, width)                                     \
   do {                                                               \
-    char sbuff[STR_INT_BUFF_SIZE];                                   \
-    int length;                                                      \
-    if ((width) > 0) length = sprintf(sbuff, "%*d", (width), value); \
-    else length = sprintf(sbuff, "%d", value);                       \
-    sbuff[length] = '\0';                                            \
-    PRINT(sbuff);                                                    \
+    const std::string sbuff = ((width) > 0)                          \
+      ? std::format("{:>{}}", (value), (width))                      \
+      : std::format("{}", (value));                                  \
+    PRINT(sbuff.c_str());                                            \
   } while(false)
 #define PRINT_INT(value) _PRINT_INT(value, _INT_WIDTH)
 
@@ -733,4 +730,3 @@ void dumpStackFrame(PKVM* vm) {
     printf("\n");
   }
 }
-

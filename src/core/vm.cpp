@@ -5,6 +5,8 @@
  */
 
 #include <math.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "vm.h"
@@ -191,10 +193,10 @@ bool PKVM::vmPrepareFiber(Fiber* fiber, int argc, Var* argv) {
          OOPS " (Forget to initialize arity.)");
 
   if ((fiber->closure->fn->arity != -1) && argc != fiber->closure->fn->arity) {
-    char buff[STR_INT_BUFF_SIZE];
-    sprintf(buff, "%d", fiber->closure->fn->arity);
+    const std::string buff = std::format("{}", fiber->closure->fn->arity);
     _ERR_FAIL(stringFormat(vm, "Expected exactly $ argument(s) for "
-                           "function $.", buff, fiber->closure->fn->name));
+                           "function $.", buff.c_str(),
+                           fiber->closure->fn->name));
   }
 
   if (fiber->state != FIBER_NEW) {
@@ -542,11 +544,11 @@ Var PKVM::vmImportModule(String* from, String* path) {
     // The path of the module contain '/' which was replacement of '.' in the
     // import syntax, this is done so that path resolving can be done easily.
     // However it needs to be '.' for the name of the module.
-    String* _name = newStringLength(vm, path->data, path->length);
+    String* _name = newStringLength(vm, {path->data, path->length});
     for (char* c = _name->data; c < _name->data + _name->length; c++) {
       if (*c == '/') *c = '.';
     }
-    _name->hash = utilHashString(_name->data);
+    _name->hash = utilHashString({_name->data, _name->length});
     vm->vmPushTempRef(static_cast<Object*>(_name)); // _name.
 
     #ifndef PK_NO_DL
@@ -982,7 +984,7 @@ L_vm_main_loop:
 
       if (IS_OBJ(key) && !isObjectHashable(AS_OBJ(key)->type)) {
         RUNTIME_ERROR(stringFormat(vm, "$ type is not hashable.",
-                      varTypeName(key)));
+                      varTypeName(key).data()));
       }
       mapSet(vm, (Map*)AS_OBJ(on), key, value);
 
@@ -1125,7 +1127,7 @@ L_vm_main_loop:
       // inherited from.
       if (base->class_of != PK_INSTANCE && base->class_of != PK_OBJECT) {
         RUNTIME_ERROR(stringFormat(vm, "$ type cannot be inherited.",
-                      getPkVarTypeName(base->class_of)));
+                      getPkVarTypeName(base->class_of).data()));
       }
 
       uint16_t index = READ_SHORT();
@@ -1297,7 +1299,7 @@ L_do_call:
       } else {
         RUNTIME_ERROR(stringFormat(vm, "$ '$'.", "Expected a callable to "
                       "call, instead got",
-                      varTypeName(callable)));
+                      varTypeName(callable).data()));
       }
 
       // If we reached here it's a valid callable.
@@ -1305,9 +1307,10 @@ L_do_call:
 
       // -1 argument means multiple number of args.
       if (closure->fn->arity != -1 && closure->fn->arity != argc) {
-        char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", closure->fn->arity);
+        const std::string buff = std::format("{}", closure->fn->arity);
         String* msg = stringFormat(vm, "Expected exactly $ argument(s) "
-                                  "for function $", buff, closure->fn->name);
+                                   "for function $", buff.c_str(),
+                                   closure->fn->name);
         RUNTIME_ERROR(msg);
       }
 
@@ -1411,7 +1414,7 @@ L_do_call:
           if (iter >= str->length) JUMP_ITER_EXIT();
 
           //TODO: vm's char (and reusable) strings.
-          *value = VAR_OBJ(newStringLength(vm, str->data + iter, 1));
+          *value = VAR_OBJ(newStringLength(vm, {str->data + iter, 1}));
           *iterator = VAR_NUM((double)iter + 1);
 
         } DISPATCH();
