@@ -1323,7 +1323,7 @@ DEF(_classMethods,
   for (int i = 0; i < (int) self->methods.count; i++) {
     Closure* method = self->methods.data[i];
     ASSERT(!method->fn->name.empty(), OOPS);
-    if (method->fn->name[0] == SPECIAL_NAME_CHAR) continue;
+    if (method->fn->name.front() == SPECIAL_NAME_CHAR) continue;
     MethodBind* mb = newMethodBind(vm, method);
     vm->vmPushTempRef(static_cast<Object*>(mb)); // mb.
     listAppend(vm, list, VAR_OBJ(mb));
