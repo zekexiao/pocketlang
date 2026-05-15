@@ -917,8 +917,8 @@ void Compiler::eatString(bool single_quote) {
   }
 
   // '\0' will be added by varNewSring();
-  Var string = VAR_OBJ(newStringLength(parser->vm, (const char*)buff.data,
-                       (uint32_t)buff.count));
+  Var string = VAR_OBJ(newStringLength(parser->vm,
+                       {(const char*)buff.data, buff.count}));
 
   pkBufferClear(&buff, parser->vm);
 
@@ -2649,7 +2649,7 @@ int Compiler::compileClass() {
   // Create a new class.
   int cls_index;
   PKVM* _vm = this->parser.vm;
-  Class* cls = newClass(_vm, name, name_len,
+  Class* cls = newClass(_vm, {name, (size_t)name_len},
                         _vm->builtin_classes[PK_OBJECT], this->module,
                         NULL, &cls_index);
   _vm->vmPushTempRef(static_cast<Object*>(cls)); // cls.
@@ -2825,7 +2825,7 @@ void Compiler::compileFunction(FuncType fn_type) {
   // The function will register itself in the owner's constant pool and it's
   // GC root so we don't need to push it to temp references.
   int fn_index;
-  Function* func = newFunction(this->parser.vm, name, name_length,
+  Function* func = newFunction(this->parser.vm, {name, (size_t)name_length},
                                this->module, false, NULL, &fn_index);
 
   func->is_method = (fn_type == FUNC_METHOD || fn_type == FUNC_CONSTRUCTOR);
@@ -3029,7 +3029,7 @@ Token Compiler::compileImportPath() {
   // Create constant pool entry for the path string.
   int index = 0;
   moduleAddString(this->module, this->parser.vm,
-                  (const char*) buff.data, buff.count - 1, &index);
+                  {(const char*)buff.data, buff.count - 1}, &index);
 
   pkBufferClear(&buff, vm);
 
@@ -3092,8 +3092,8 @@ void Compiler::compileFromImport() {
 
     // Add the name of the symbol to the constant pool.
     int name_index = 0;
-    moduleAddString(this->module, this->parser.vm, tkname.start,
-                    tkname.length, &name_index);
+    moduleAddString(this->module, this->parser.vm,
+                    {tkname.start, (size_t)tkname.length}, &name_index);
 
     // Don't pop the lib since it'll be used for the next entry.
     emitOpcode(OP_GET_ATTRIB_KEEP);

@@ -1414,7 +1414,7 @@ L_do_call:
           if (iter >= str->length) JUMP_ITER_EXIT();
 
           //TODO: vm's char (and reusable) strings.
-          *value = VAR_OBJ(newStringLength(vm, str->data + iter, 1));
+          *value = VAR_OBJ(newStringLength(vm, {str->data + iter, 1}));
           *iterator = VAR_NUM((double)iter + 1);
 
         } DISPATCH();

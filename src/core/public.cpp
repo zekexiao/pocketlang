@@ -222,7 +222,7 @@ void pkAddSearchPath(PKVM* vm, const char* path) {
   ASSERT(last == '/' || last == '\\', "Path should ends with "
                                       "either '/' or '\\'.");
 
-  String* spath = newStringLength(vm, path, (uint32_t) length);
+  String* spath = newStringLength(vm, {path, length});
   vm->vmPushTempRef(static_cast<Object*>(spath)); // spath.
   listAppend(vm, vm->search_paths, VAR_OBJ(spath));
   vm->vmPopTempRef(); // spath.
@@ -808,7 +808,7 @@ void pkSetSlotStringLength(PKVM* vm, int index,
                                      const char* value, uint32_t length) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, VAR_OBJ(newStringLength(vm, value, length)));
+  SET_SLOT(index, VAR_OBJ(newStringLength(vm, {value, length})));
 }
 
 void pkSetSlotStringFmt(PKVM* vm, int index, const char* fmt, ...) {
