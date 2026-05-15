@@ -32,11 +32,13 @@ PocketVm::PocketVm() {
   vm_ = pkNewVM(&config);
 }
 
-PocketVm::~PocketVm() {
-  if (vm_ != nullptr) {
-    pkFreeVM(vm_);
-    vm_ = nullptr;
-  }
+PocketVm::PocketVm(PocketVm&& other) noexcept : vm_(other.release()) {}
+
+PocketVm::~PocketVm() { reset(); }
+
+PocketVm& PocketVm::operator=(PocketVm&& other) noexcept {
+  if (this != &other) reset(other.release());
+  return *this;
 }
 
 int PocketVm::runString(const char* source) const {
@@ -49,4 +51,15 @@ int PocketVm::runFile(const char* path) const {
 
 int PocketVm::runRepl() const {
   return pkRunREPL(vm_);
+}
+
+PKVM* PocketVm::release() noexcept {
+  PKVM* vm = vm_;
+  vm_ = nullptr;
+  return vm;
+}
+
+void PocketVm::reset(PKVM* vm) noexcept {
+  if (vm_ != nullptr) pkFreeVM(vm_);
+  vm_ = vm;
 }

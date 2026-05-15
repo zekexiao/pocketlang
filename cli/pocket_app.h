@@ -8,7 +8,15 @@
 
 class PocketApp {
  public:
-  int run(int argc, const char** argv) const;
+  PocketApp() = default;
+  ~PocketApp() = default;
+
+  PocketApp(const PocketApp&) = default;
+  PocketApp(PocketApp&&) noexcept = default;
+  PocketApp& operator=(const PocketApp&) = default;
+  PocketApp& operator=(PocketApp&&) noexcept = default;
+
+  [[nodiscard]] int run(int argc, const char** argv) const;
 };
 
 #endif // POCKET_APP_H

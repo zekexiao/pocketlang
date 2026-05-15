@@ -51,16 +51,33 @@
 // Handles are wrapper around Var that lives on the host application.
 class PkHandle {
 public:
-  Var value;
+  PkHandle(const PkHandle&) = delete;
+  PkHandle& operator=(const PkHandle&) = delete;
+  PkHandle(PkHandle&&) = delete;
+  PkHandle& operator=(PkHandle&&) = delete;
 
-  PkHandle* prev;
-  PkHandle* next;
+  // The Var this handle wraps. Read-only access for external callers.
+  [[nodiscard]] Var value() const noexcept { return value_; }
+
+private:
+  // Only PKVM and pkReleaseHandle may touch the linked-list pointers and
+  // write the stored value.
+  friend class PKVM;
+  friend void pkReleaseHandle(PKVM* vm, PkHandle* handle);
+
+  Var value_;
+  PkHandle* prev_;
+  PkHandle* next_;
 };
 
 // PocketLang Virtual Machine. It'll contain the state of the execution, stack,
 // heap, and manage memory allocations.
 class PKVM {
 public:
+  PKVM(const PKVM&) = delete;
+  PKVM& operator=(const PKVM&) = delete;
+  PKVM(PKVM&&) = delete;
+  PKVM& operator=(PKVM&&) = delete;
 
   // The first object in the link list of all heap allocated objects.
   Object* first;

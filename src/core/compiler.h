@@ -31,19 +31,28 @@ class Compiler;
 // (like lua does) it needs to be a somehow addressed (TODO:).
 class CompileOptions {
 public:
+  CompileOptions() = default;
+  CompileOptions(const CompileOptions&) = default;
+  CompileOptions(CompileOptions&&) noexcept = default;
+  CompileOptions& operator=(const CompileOptions&) = default;
+  CompileOptions& operator=(CompileOptions&&) noexcept = default;
 
   // Compile debug version of the source. In release mode all the assertions
   // and debug informations will be stripped (TODO:) and wll be optimized.
-  bool debug;
+  [[nodiscard]] bool debug() const noexcept { return debug_; }
 
   // Set to true if compiling in REPL mode, This will print repr version of
   // each evaluated non-null values.
-  bool repl_mode;
+  [[nodiscard]] bool replMode() const noexcept { return repl_mode_; }
+
+  void setDebug(bool debug) noexcept { debug_ = debug; }
+  void setReplMode(bool repl_mode) noexcept { repl_mode_ = repl_mode; }
+
+private:
+  bool debug_ = false;
+  bool repl_mode_ = false;
 
 };
-
-// Create a new CompilerOptions with the default values and return it.
-CompileOptions newCompilerOptions();
 
 // This will take source code as a cstring, compiles it to pocketlang bytecodes
 // and append them to the module's implicit main function. On a successfull

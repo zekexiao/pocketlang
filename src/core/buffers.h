@@ -16,6 +16,12 @@
 template <typename T>
 class pkBuffer {
 public:
+  pkBuffer() = default;
+  pkBuffer(const pkBuffer&) = delete;
+  pkBuffer(pkBuffer&&) = delete;
+  pkBuffer& operator=(const pkBuffer&) = delete;
+  pkBuffer& operator=(pkBuffer&&) = delete;
+
   T* data;
   uint32_t count;
   uint32_t capacity;

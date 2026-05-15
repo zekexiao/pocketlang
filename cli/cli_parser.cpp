@@ -50,18 +50,25 @@ std::array<argparse_option, 6> makeCliOptions(const CliOptionState& state) {
 } // namespace
 
 void CliParser::parse(int argc, const char** argv, CliOptions& options) const {
+  const char* command = nullptr;
+  int debug = false, help = false, quiet = false, version = false;
   auto cli_opts = makeCliOptions({
-    &options.cmd,
-    &options.debug,
-    &options.help,
-    &options.quiet,
-    &options.version,
+    &command,
+    &debug,
+    &help,
+    &quiet,
+    &version,
   });
 
   struct argparse argparse;
   argparse_init(&argparse, cli_opts.data(), kUsage, 0);
-  options.argc = argparse_parse(&argparse, argc, argv);
-  options.argv = argv;
+  options.setArgc(argparse_parse(&argparse, argc, argv));
+  options.setCommand(command);
+  options.setDebug(debug != 0);
+  options.setHelp(help != 0);
+  options.setQuiet(quiet != 0);
+  options.setVersion(version != 0);
+  options.setArgv(argv);
 }
 
 void CliParser::printUsage() const {

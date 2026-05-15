@@ -47,7 +47,7 @@
 #define CHECK_HANDLE_TYPE(handle, type)          \
   do {                                           \
     CHECK_ARG_NULL(handle);                      \
-    ASSERT(IS_OBJ_TYPE(handle->value, type),     \
+    ASSERT(IS_OBJ_TYPE(handle->value(), type),   \
       "Given handle is not of type " #type "."); \
   } while (false)
 
@@ -240,7 +240,7 @@ PkHandle* pkNewModule(PKVM* vm, const char* name) {
 void pkRegisterModule(PKVM* vm, PkHandle* module) {
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
 
-  Module* module_ = (Module*)AS_OBJ(module->value);
+  Module* module_ = (Module*)AS_OBJ(module->value());
   vm->vmRegisterModule(module_, module_->name);
 }
 
@@ -249,7 +249,7 @@ void pkModuleAddFunction(PKVM* vm, PkHandle* module, const char* name,
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
   CHECK_ARG_NULL(fptr);
 
-  moduleAddFunctionInternal(vm, (Module*)AS_OBJ(module->value),
+  moduleAddFunctionInternal(vm, (Module*)AS_OBJ(module->value()),
                             name, fptr, arity, docstring);
 }
 
@@ -265,11 +265,11 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
   Class* super = vm->builtin_classes[PK_OBJECT];
   if (base_class != NULL) {
     CHECK_HANDLE_TYPE(base_class, OBJ_CLASS);
-    super = (Class*)AS_OBJ(base_class->value);
+    super = (Class*)AS_OBJ(base_class->value());
   }
 
   Class* class_ = newClass(vm, name, (int)strlen(name),
-                           super, (Module*)AS_OBJ(module->value),
+                           super, (Module*)AS_OBJ(module->value()),
                            docstring, NULL);
   class_->new_fn = new_fn;
   class_->delete_fn = delete_fn;
@@ -291,7 +291,7 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
   // Check if the method name is valid, and validate argc for special
   // methods (like "@getter", "@call", "+", "-", etc).
 
-  Class* class_ = (Class*)AS_OBJ(cls->value);
+  Class* class_ = (Class*)AS_OBJ(cls->value());
 
   Function* fn = newFunction(vm, name, (int)strlen(name),
                              class_->owner, true, docstring, NULL);
@@ -319,7 +319,7 @@ void pkModuleAddSource(PKVM* vm, PkHandle* module, const char* source) {
   CHECK_HANDLE_TYPE(module, OBJ_MODULE);
   CHECK_ARG_NULL(source);
   // TODO: compiler options, maybe set to the vm and reuse it here.
-  compile(vm, (Module*) AS_OBJ(module->value), source, NULL);
+  compile(vm, (Module*) AS_OBJ(module->value()), source, NULL);
 }
 
 void pkReleaseHandle(PKVM* vm, PkHandle* handle) {
@@ -327,12 +327,12 @@ void pkReleaseHandle(PKVM* vm, PkHandle* handle) {
 
   // If the handle is the head of the vm's handle chain set it to the next one.
   if (handle == vm->handles) {
-    vm->handles = handle->next;
+    vm->handles = handle->next_;
   }
 
   // Remove the handle from the chain by connecting the both ends together.
-  if (handle->next) handle->next->prev = handle->prev;
-  if (handle->prev) handle->prev->next = handle->next;
+  if (handle->next_) handle->next_->prev_ = handle->prev_;
+  if (handle->prev_) handle->prev_->next_ = handle->next_;
 
   // Free the handle.
   DEALLOCATE(vm, handle, PkHandle);
@@ -474,8 +474,8 @@ PkResult pkRunREPL(PKVM* vm) {
   pkReadFn inputfn = vm->config.stdin_read;
   PkResult result = PK_RESULT_SUCCESS;
 
-  CompileOptions options = newCompilerOptions();
-  options.repl_mode = true;
+  CompileOptions options;
+  options.setReplMode(true);
 
   if (inputfn == NULL) {
     if (printerrfn) printerrfn(vm, "REPL failed to input.");
@@ -484,8 +484,8 @@ PkResult pkRunREPL(PKVM* vm) {
 
   // The main module that'll be used to compile and execute the input source.
   PkHandle* module = pkNewModule(vm, "@(REPL)");
-  ASSERT(IS_OBJ_TYPE(module->value, OBJ_MODULE), OOPS);
-  Module* _module = (Module*) AS_OBJ(module->value);
+  ASSERT(IS_OBJ_TYPE(module->value(), OBJ_MODULE), OOPS);
+  Module* _module = (Module*) AS_OBJ(module->value());
   initializeModule(vm, _module, true);
 
   // A buffer to store multiple lines read from stdin.
@@ -823,7 +823,7 @@ void pkSetSlotHandle(PKVM* vm, int index, PkHandle* handle) {
   CHECK_FIBER_EXISTS(vm);
   CHECK_ARG_NULL(handle);
   VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, handle->value);
+  SET_SLOT(index, handle->value());
 }
 
 uint32_t pkGetSlotHash(PKVM* vm, int index) {

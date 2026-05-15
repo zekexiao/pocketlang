@@ -19,10 +19,10 @@ void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size) {
 PkHandle* PKVM::vmNewHandle(Var value) {
   PKVM* vm = this;
   PkHandle* handle = (PkHandle*)ALLOCATE(vm, PkHandle);
-  handle->value = value;
-  handle->prev = NULL;
-  handle->next = vm->handles;
-  if (handle->next != NULL) handle->next->prev = handle;
+  handle->value_ = value;
+  handle->prev_ = NULL;
+  handle->next_ = vm->handles;
+  if (handle->next_ != NULL) handle->next_->prev_ = handle;
   vm->handles = handle;
   return handle;
 }
@@ -116,8 +116,8 @@ void PKVM::vmCollectGarbage() {
   }
 
   // Mark the handles.
-  for (PkHandle* h = vm->handles; h != NULL; h = h->next) {
-    markValue(vm, h->value);
+  for (PkHandle* h = vm->handles; h != NULL; h = h->next_) {
+    markValue(vm, h->value_);
   }
 
   // Garbage collection triggered at the middle of a compilation.
@@ -400,13 +400,13 @@ static Module* _importDL(PKVM* vm, String* resolved, String* name) {
     return NULL;
   }
 
-  if (!IS_OBJ_TYPE(pkhandle->value, OBJ_MODULE)) {
+  if (!IS_OBJ_TYPE(pkhandle->value(), OBJ_MODULE)) {
     VM_SET_ERROR(vm, stringFormat(vm, "Returned handle wasn't a "
                  "module at \"@\"", resolved));
     return NULL;
   }
 
-  Module* module = (Module*) AS_OBJ(pkhandle->value);
+  Module* module = (Module*) AS_OBJ(pkhandle->value());
   module->name = name;
   module->path = resolved;
   module->handle = handle;

@@ -14,13 +14,18 @@ class PocketVm {
   ~PocketVm();
 
   PocketVm(const PocketVm&) = delete;
+  PocketVm(PocketVm&& other) noexcept;
   PocketVm& operator=(const PocketVm&) = delete;
+  PocketVm& operator=(PocketVm&& other) noexcept;
 
-  int runString(const char* source) const;
-  int runFile(const char* path) const;
-  int runRepl() const;
+  [[nodiscard]] int runString(const char* source) const;
+  [[nodiscard]] int runFile(const char* path) const;
+  [[nodiscard]] int runRepl() const;
 
  private:
+  PKVM* release() noexcept;
+  void reset(PKVM* vm = nullptr) noexcept;
+
   PKVM* vm_ = nullptr;
 };
 
