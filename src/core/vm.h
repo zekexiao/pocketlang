@@ -56,10 +56,18 @@ public:
   PkHandle(PkHandle&&) = delete;
   PkHandle& operator=(PkHandle&&) = delete;
 
-  Var value;
+  // The Var this handle wraps. Read-only access for external callers.
+  [[nodiscard]] Var value() const noexcept { return value_; }
 
-  PkHandle* prev;
-  PkHandle* next;
+private:
+  // Only PKVM and pkReleaseHandle may touch the linked-list pointers and
+  // write the stored value.
+  friend class PKVM;
+  friend void pkReleaseHandle(PKVM* vm, PkHandle* handle);
+
+  Var value_;
+  PkHandle* prev_;
+  PkHandle* next_;
 };
 
 // PocketLang Virtual Machine. It'll contain the state of the execution, stack,

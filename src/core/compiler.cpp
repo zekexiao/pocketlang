@@ -678,7 +678,7 @@ void Parser::init(PKVM* vm, Compiler* compiler,
 
   this->forwards_count = 0;
 
-  this->repl_mode = !!(compiler->options && compiler->options->repl_mode);
+  this->repl_mode = !!(compiler->options && compiler->options->replMode());
   this->optional_call_paran = false;
   this->parsing_class = false;
   this->has_errors = false;
@@ -709,7 +709,7 @@ void Compiler::init(PKVM* vm, const char* source,
   if (module->path != NULL) {
     source_path = module->path->data;
 
-  } else if (options && options->repl_mode) {
+  } else if (options && options->replMode()) {
     source_path = "@REPL";
   }
 
@@ -3346,7 +3346,7 @@ void Compiler::compileStatement() {
       // is_last_call would be true by now.
       if (this->is_last_call) {
         // Tail call optimization disabled at debug mode.
-        if (this->options && !this->options->debug) {
+        if (this->options && !this->options->debug()) {
           ASSERT(_FN->opcodes.count >= 2, OOPS); // OP_CALL, argc
           ASSERT(_FN->opcodes.data[_FN->opcodes.count - 2] == OP_CALL, OOPS);
           _FN->opcodes.data[_FN->opcodes.count - 2] = OP_TAIL_CALL;
@@ -3377,7 +3377,7 @@ void Compiler::compileStatement() {
   }
 
   // If running REPL mode, print the expression's evaluated value.
-  if (this->options && this->options->repl_mode &&
+  if (this->options && this->options->replMode() &&
       this->func->ptr == this->module->body->fn &&
       is_expression /*&& this->scope_depth == DEPTH_GLOBAL*/) {
     emitOpcode(OP_REPL_PRINT);
@@ -3415,13 +3415,6 @@ void Compiler::compileTopLevelStatement() {
   // a top level statement, since there aren't any locals at the top level.
   ASSERT(this->parser.has_errors || this->func->stack_size == 0, OOPS);
 
-}
-
-CompileOptions newCompilerOptions() {
-  CompileOptions options;
-  options.debug = false;
-  options.repl_mode = false;
-  return options;
 }
 
 PkResult compile(PKVM* vm, Module* module, const char* source,
