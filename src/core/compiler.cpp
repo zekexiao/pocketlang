@@ -678,7 +678,7 @@ void Parser::init(PKVM* vm, Compiler* compiler,
 
   this->forwards_count = 0;
 
-  this->repl_mode = !!(compiler->options && compiler->options->replMode());
+  this->repl_mode = compiler->options && compiler->options->replMode();
   this->optional_call_paran = false;
   this->parsing_class = false;
   this->has_errors = false;
