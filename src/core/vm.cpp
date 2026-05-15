@@ -5,6 +5,8 @@
  */
 
 #include <math.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "vm.h"
@@ -191,10 +193,9 @@ bool PKVM::vmPrepareFiber(Fiber* fiber, int argc, Var* argv) {
          OOPS " (Forget to initialize arity.)");
 
   if ((fiber->closure->fn->arity != -1) && argc != fiber->closure->fn->arity) {
-    char buff[STR_INT_BUFF_SIZE];
-    sprintf(buff, "%d", fiber->closure->fn->arity);
+    const std::string buff = std::format("{}", fiber->closure->fn->arity);
     _ERR_FAIL(stringFormat(vm, "Expected exactly $ argument(s) for "
-                           "function $.", buff, fiber->closure->fn->name));
+                           "function $.", buff.c_str(), fiber->closure->fn->name));
   }
 
   if (fiber->state != FIBER_NEW) {
@@ -1305,9 +1306,9 @@ L_do_call:
 
       // -1 argument means multiple number of args.
       if (closure->fn->arity != -1 && closure->fn->arity != argc) {
-        char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", closure->fn->arity);
+        const std::string buff = std::format("{}", closure->fn->arity);
         String* msg = stringFormat(vm, "Expected exactly $ argument(s) "
-                                  "for function $", buff, closure->fn->name);
+                                  "for function $", buff.c_str(), closure->fn->name);
         RUNTIME_ERROR(msg);
       }
 

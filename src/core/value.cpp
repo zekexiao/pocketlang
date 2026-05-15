@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <math.h>
 #include <ctype.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "value.h"
@@ -1568,9 +1570,8 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
       }
 
     } else {
-      char num_buff[STR_DBL_BUFF_SIZE];
-      int length = sprintf(num_buff, DOUBLE_FMT, AS_NUM(v));
-      pkByteBufferAddString(buff, vm, num_buff, length);
+      const std::string num_str = std::format("{:.16g}", AS_NUM(v));
+      pkByteBufferAddString(buff, vm, num_str.c_str(), (uint32_t)num_str.size());
     }
 
     return;
@@ -1700,18 +1701,14 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
       case OBJ_RANGE:
       {
         const Range* range = (const Range*)obj;
-
-        char buff_from[STR_DBL_BUFF_SIZE];
-        const int len_from = snprintf(buff_from, sizeof(buff_from),
-                                      DOUBLE_FMT, range->from);
-        char buff_to[STR_DBL_BUFF_SIZE];
-        const int len_to = snprintf(buff_to, sizeof(buff_to),
-                                    DOUBLE_FMT, range->to);
+        const std::string from_str = std::format("{:.16g}", range->from);
+        const std::string to_str = std::format("{:.16g}", range->to);
 
         pkByteBufferAddString(buff, vm, "[Range:", 7);
-        pkByteBufferAddString(buff, vm, buff_from, len_from);
+        pkByteBufferAddString(buff, vm, from_str.c_str(),
+                              (uint32_t)from_str.size());
         pkByteBufferAddString(buff, vm, "..", 2);
-        pkByteBufferAddString(buff, vm, buff_to, len_to);
+        pkByteBufferAddString(buff, vm, to_str.c_str(), (uint32_t)to_str.size());
         pkBufferWrite(buff, vm, ']');
         return;
       }
@@ -1787,13 +1784,10 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, inst->cls->name->data,
           inst->cls->name->length);
         pkByteBufferAddString(buff, vm, "' instance at ", 14);
-
-        char buff_addr[STR_HEX_BUFF_SIZE];
-        char* ptr = (char*)buff_addr;
-        (*ptr++) = '0'; (*ptr++) = 'x';
-        const int len = snprintf(ptr, sizeof(buff_addr) - 2,
-          "%08x", (unsigned int)(uintptr_t)inst);
-        pkByteBufferAddString(buff, vm, buff_addr, (uint32_t)len);
+        const std::string addr_str = std::format(
+          "0x{:08x}", (unsigned int)(uintptr_t)inst);
+        pkByteBufferAddString(buff, vm, addr_str.c_str(),
+                              (uint32_t)addr_str.size());
         pkBufferWrite(buff, vm, ']');
         return;
       }

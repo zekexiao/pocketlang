@@ -5,8 +5,10 @@
  */
 
 #include <ctype.h>
+#include <format>
 #include <limits.h>
 #include <math.h>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include "core.h"
@@ -111,9 +113,9 @@ static inline bool validateCond(PKVM* vm, bool condition, const char* err) {
     Var var = ARG(arg);                                                      \
     ASSERT(arg > 0 && arg <= ARGC, OOPS);                                    \
     if (!IS_OBJ(var) || AS_OBJ(var)->type != m_type) {                       \
-      char buff[12]; sprintf(buff, "%d", arg);                               \
+      const std::string buff = std::format("{}", arg);                       \
       VM_SET_ERROR(vm, stringFormat(vm, "Expected a " m_name                 \
-                   " at argument $.", buff, false));                         \
+                   " at argument $.", buff.c_str(), false));                 \
       return false;                                                          \
     }                                                                        \
     *value = (m_class*)AS_OBJ(var);                                          \
@@ -475,24 +477,17 @@ DEF(coreHex,
   int64_t value;
   if (!validateInteger(vm, ARG(1), &value, "Argument 1")) return;
 
-  char buff[STR_HEX_BUFF_SIZE];
-
-  char* ptr = buff;
-  if (value < 0) *ptr++ = '-';
-  *ptr++ = '0'; *ptr++ = 'x';
-
   if (value > UINT32_MAX || value < -(int64_t)(UINT32_MAX)) {
     VM_SET_ERROR(vm, newString(vm, "Integer is too large."));
     RET(VAR_NULL);
   }
 
-  // TODO: sprintf limits only to 8 character hex value, we need to do it
+  // TODO: previous sprintf limits only to 8 character hex value, we need to do it
   // outself for a maximum of 16 character long (see bin() for reference).
   uint32_t _x = (uint32_t)((value < 0) ? -value : value);
-  int length = sprintf(ptr, "%x", _x);
+  const std::string hex = std::format("{}0x{:x}", (value < 0) ? "-" : "", _x);
 
-  RET(VAR_OBJ(newStringLength(vm, buff,
-    (uint32_t)((ptr + length) - (char*)(buff)))));
+  RET(VAR_OBJ(newStringLength(vm, hex.c_str(), (uint32_t)hex.size())));
 }
 
 DEF(coreYield,

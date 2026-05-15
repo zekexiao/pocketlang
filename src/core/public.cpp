@@ -7,6 +7,8 @@
 // This file contains all the pocketlang public function implementations.
 
 #include <math.h>
+#include <format>
+#include <string>
 
 #ifndef PK_AMALGAMATED
 #include <pocketlang.h>
@@ -596,15 +598,15 @@ bool pkCheckArgcRange(PKVM* vm, int argc, int min, int max) {
   ASSERT(min <= max, "invalid argc range (min > max).");
 
   if (argc < min) {
-    char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", min);
+    const std::string buff = std::format("{}", min);
     VM_SET_ERROR(vm, stringFormat(vm, "Expected at least %s argument(s).",
-                                       buff));
+                                       buff.c_str()));
     return false;
 
   } else if (argc > max) {
-    char buff[STR_INT_BUFF_SIZE]; sprintf(buff, "%d", max);
+    const std::string buff = std::format("{}", max);
     VM_SET_ERROR(vm, stringFormat(vm, "Expected at most %s argument(s).",
-                                       buff));
+                                       buff.c_str()));
     return false;
   }
 
@@ -614,10 +616,9 @@ bool pkCheckArgcRange(PKVM* vm, int argc, int min, int max) {
 // Set error for incompatible type provided as an argument. (TODO: got type).
 #define ERR_INVALID_SLOT_TYPE(slot, ty_name)                       \
   do {                                                             \
-    char buff[STR_INT_BUFF_SIZE];                                  \
-    sprintf(buff, "%d", slot);                                     \
+    const std::string buff = std::format("{}", slot);              \
     VM_SET_ERROR(vm, stringFormat(vm, "Expected a '$' at slot $.", \
-                                      ty_name, buff));             \
+                                      ty_name, buff.c_str()));     \
   } while (false)
 
 // FIXME: If the user needs just the boolean value of the object, they should
