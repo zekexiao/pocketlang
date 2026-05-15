@@ -4,6 +4,7 @@
  *  Distributed Under The MIT License
  */
 
+#include <algorithm>
 #include <math.h>
 #include <ctype.h>
 
@@ -22,9 +23,6 @@
 // capacity. The new capacity will be calculated by multiplying it's old
 // capacity by the GROW_FACTOR.
 #define GROW_FACTOR 2
-
-#define _MAX(a,b) ((a) > (b) ? (a) : (b))
-#define _MIN(a,b) ((a) < (b) ? (a) : (b))
 
 void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, const char* str,
                            uint32_t length) {
@@ -682,13 +680,14 @@ String* stringReplace(PKVM* vm, String* self,
   int32_t max_count = self->length / old->length;
   count = (count == -1)
     ? max_count
-    : _MIN(count, max_count);
+    : std::min(count, max_count);
 
   // TODO: New length can be overflow if the string is too large
   // we should handle it here.
 
-  uint32_t length = _MAX(self->length,
-                    self->length + (new_->length - old->length) * count);
+  uint32_t replaced_length_delta = (new_->length - old->length) * count;
+  uint32_t length = std::max(self->length,
+                             self->length + replaced_length_delta);
 
   String* replaced = self; // Will be allocated if any match found.
   int32_t replacedc = 0; // Replaced count so far.
