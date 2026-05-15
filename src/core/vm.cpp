@@ -195,7 +195,8 @@ bool PKVM::vmPrepareFiber(Fiber* fiber, int argc, Var* argv) {
   if ((fiber->closure->fn->arity != -1) && argc != fiber->closure->fn->arity) {
     const std::string buff = std::format("{}", fiber->closure->fn->arity);
     _ERR_FAIL(stringFormat(vm, "Expected exactly $ argument(s) for "
-                           "function $.", buff.c_str(), fiber->closure->fn->name));
+                           "function $.", buff.c_str(),
+                           fiber->closure->fn->name));
   }
 
   if (fiber->state != FIBER_NEW) {
@@ -1308,7 +1309,8 @@ L_do_call:
       if (closure->fn->arity != -1 && closure->fn->arity != argc) {
         const std::string buff = std::format("{}", closure->fn->arity);
         String* msg = stringFormat(vm, "Expected exactly $ argument(s) "
-                                  "for function $", buff.c_str(), closure->fn->name);
+                                   "for function $", buff.c_str(),
+                                   closure->fn->name);
         RUNTIME_ERROR(msg);
       }
 

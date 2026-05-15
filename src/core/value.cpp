@@ -1571,7 +1571,8 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
 
     } else {
       const std::string num_str = std::format("{:.16g}", AS_NUM(v));
-      pkByteBufferAddString(buff, vm, num_str.c_str(), (uint32_t)num_str.size());
+      pkByteBufferAddString(buff, vm, num_str.c_str(),
+                            (uint32_t)num_str.size());
     }
 
     return;
@@ -1708,7 +1709,8 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, from_str.c_str(),
                               (uint32_t)from_str.size());
         pkByteBufferAddString(buff, vm, "..", 2);
-        pkByteBufferAddString(buff, vm, to_str.c_str(), (uint32_t)to_str.size());
+        pkByteBufferAddString(buff, vm, to_str.c_str(),
+                              (uint32_t)to_str.size());
         pkBufferWrite(buff, vm, ']');
         return;
       }
