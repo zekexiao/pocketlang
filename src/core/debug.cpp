@@ -101,8 +101,8 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         while (*c != '\0' && *c != '\n') c++;
 
         buff.count = 0;
-        pkByteBufferAddString(&buff, vm, line_start,
-                              (uint32_t)(c - line_start));
+        pkByteBufferAddString(&buff, vm,
+                              {line_start, (size_t)(c - line_start)});
         pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
         writefn(vm, "\n");
@@ -113,15 +113,15 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
 
         // Print line till error.
         buff.count = 0;
-        pkByteBufferAddString(&buff, vm, line_start,
-                              (uint32_t)(at - line_start));
+        pkByteBufferAddString(&buff, vm,
+                              {line_start, (size_t)(at - line_start)});
         pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
 
         // Print error token - if the error token is a new line ignore it.
         if (*at != '\n') {
           buff.count = 0;
-          pkByteBufferAddString(&buff, vm, at, length);
+          pkByteBufferAddString(&buff, vm, {at, (size_t)length});
           pkBufferWrite(&buff, vm, '\0');
           _printRed(vm, (char*)buff.data);
 
@@ -140,8 +140,8 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
           // Print rest of the line.
           if (c != tail_start) {
             buff.count = 0;
-            pkByteBufferAddString(&buff, vm, tail_start,
-                                  (uint32_t)(c - tail_start));
+            pkByteBufferAddString(&buff, vm,
+                                  {tail_start, (size_t)(c - tail_start)});
             pkBufferWrite(&buff, vm, '\0');
             writefn(vm, (char*)buff.data);
           }
@@ -153,7 +153,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         // White space before error token.
         buff.count = 0;
         pkBufferFill(&buff, vm, ' ', line_number_width);
-        pkByteBufferAddString(&buff, vm, " | ", 3);
+        pkByteBufferAddString(&buff, vm, " | ");
 
         for (const char* c2 = line_start; c2 < at; c2++) {
           char white_space = (*c2 == '\t') ? '\t' : ' ';
