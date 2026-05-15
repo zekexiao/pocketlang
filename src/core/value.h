@@ -16,7 +16,7 @@
  * A simple dynamic type system library for small dynamic typed languages using
  * a technique called NaN-tagging. The method is inspired from the
  * wren (https://wren.io/) an awesome language written by Bob Nystrom the
- * author of "Crafting Interpreters" and it's contrbuters.
+ * author of "Crafting Interpreters" and its contributors.
  * Reference:
  *     https://github.com/wren-lang/wren/blob/main/src/vm/wren_value.h
  *     https://leonardschuetz.ch/blog/nan-boxing/
