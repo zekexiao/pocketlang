@@ -2996,12 +2996,12 @@ Token Compiler::compileImportPath() {
   pkBufferInit(&buff);
 
   if (match(TK_DOT)) {
-    pkByteBufferAddString(&buff, vm, "./", 2);
+    pkByteBufferAddString(&buff, vm, "./");
 
   } else {
     // Consume parent directory syntax.
     while (match(TK_CARET)) {
-      pkByteBufferAddString(&buff, vm, "../", 3);
+      pkByteBufferAddString(&buff, vm, "../");
     }
   }
 
@@ -3016,7 +3016,8 @@ Token Compiler::compileImportPath() {
     if (tkmodule.type != TK_ERROR) pkBufferWrite(&buff, vm, (uint8_t) '/');
 
     tkmodule = this->parser.previous;
-    pkByteBufferAddString(&buff, vm, tkmodule.start, tkmodule.length);
+    pkByteBufferAddString(&buff, vm,
+                          {tkmodule.start, (size_t)tkmodule.length});
 
   } while (match(TK_DOT));
   pkBufferWrite(&buff, vm, '\0');
