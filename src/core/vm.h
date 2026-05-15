@@ -51,6 +51,11 @@
 // Handles are wrapper around Var that lives on the host application.
 class PkHandle {
 public:
+  PkHandle(const PkHandle&) = delete;
+  PkHandle& operator=(const PkHandle&) = delete;
+  PkHandle(PkHandle&&) = delete;
+  PkHandle& operator=(PkHandle&&) = delete;
+
   Var value;
 
   PkHandle* prev;
@@ -61,6 +66,10 @@ public:
 // heap, and manage memory allocations.
 class PKVM {
 public:
+  PKVM(const PKVM&) = delete;
+  PKVM& operator=(const PKVM&) = delete;
+  PKVM(PKVM&&) = delete;
+  PKVM& operator=(PKVM&&) = delete;
 
   // The first object in the link list of all heap allocated objects.
   Object* first;

@@ -359,6 +359,11 @@ typedef struct sFunc {
 // The context of the parsing phase for the compiler.
 class Parser {
 public:
+  Parser() = default;
+  Parser(const Parser&) = delete;
+  Parser& operator=(const Parser&) = delete;
+  Parser(Parser&&) = delete;
+  Parser& operator=(Parser&&) = delete;
 
   // Parser need a reference of the PKVM to allocate strings (for string
   // literals in the source) and to report error if there is any.
@@ -479,6 +484,11 @@ typedef enum {
 } BlockType;
 class Compiler {
 public:
+  Compiler() = default;
+  Compiler(const Compiler&) = delete;
+  Compiler& operator=(const Compiler&) = delete;
+  Compiler(Compiler&&) = delete;
+  Compiler& operator=(Compiler&&) = delete;
 
   // The parser of the compiler which contains all the parsing context for the
   // current compilation.

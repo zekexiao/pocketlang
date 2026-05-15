@@ -173,6 +173,12 @@ typedef enum {
 
 class Var {
 public:
+  Var() = default;
+  Var(const Var&) = default;
+  Var(Var&&) noexcept = default;
+  Var& operator=(const Var&) = default;
+  Var& operator=(Var&&) noexcept = default;
+
   VarType type;
   union {
     bool _bool;
@@ -235,6 +241,11 @@ typedef enum {
 // Base class for all heap allocated objects.
 class Object {
 public:
+  Object(const Object&) = delete;
+  Object& operator=(const Object&) = delete;
+  Object(Object&&) = delete;
+  Object& operator=(Object&&) = delete;
+
   ObjectType type;  //< Type of the object in \ref var_Object_Type.
   bool is_marked;   //< Marked when garbage collection's marking phase.
   Object* next;     //< Next object in the heap allocated link list.
@@ -242,6 +253,11 @@ public:
 
 class String {
 public:
+  String(const String&) = delete;
+  String& operator=(const String&) = delete;
+  String(String&&) = delete;
+  String& operator=(String&&) = delete;
+
   Object _super;
 
   uint32_t hash;      //< 32 bit hash value of the string.
@@ -252,6 +268,11 @@ public:
 
 class List {
 public:
+  List(const List&) = delete;
+  List& operator=(const List&) = delete;
+  List(List&&) = delete;
+  List& operator=(List&&) = delete;
+
   Object _super;
 
   pkVarBuffer elements; //< Elements of the array.
@@ -259,6 +280,12 @@ public:
 
 class MapEntry {
 public:
+  MapEntry() = default;
+  MapEntry(const MapEntry&) = default;
+  MapEntry(MapEntry&&) noexcept = default;
+  MapEntry& operator=(const MapEntry&) = default;
+  MapEntry& operator=(MapEntry&&) noexcept = default;
+
   // If the key is VAR_UNDEFINED it's an empty slot and if the value is false
   // the entry is new and available, if true it's a tombstone - the entry
   // previously used but then deleted.
@@ -269,6 +296,11 @@ public:
 
 class Map {
 public:
+  Map(const Map&) = delete;
+  Map& operator=(const Map&) = delete;
+  Map(Map&&) = delete;
+  Map& operator=(Map&&) = delete;
+
   Object _super;
 
   uint32_t capacity; //< Allocated entry's count.
@@ -278,6 +310,11 @@ public:
 
 class Range {
 public:
+  Range(const Range&) = delete;
+  Range& operator=(const Range&) = delete;
+  Range(Range&&) = delete;
+  Range& operator=(Range&&) = delete;
+
   Object _super;
 
   double from; //< Beggining of the range inclusive.
@@ -289,6 +326,11 @@ public:
 // pocketlang script will compiled to a module.
 class Module {
 public:
+  Module(const Module&) = delete;
+  Module& operator=(const Module&) = delete;
+  Module(Module&&) = delete;
+  Module& operator=(Module&&) = delete;
+
   Object _super;
 
   // The [name] is the module name defined with either 'module' statement
@@ -333,6 +375,11 @@ public:
 // A class contains opcodes and other information of a compiled function.
 class Fn {
 public:
+  Fn(const Fn&) = delete;
+  Fn& operator=(const Fn&) = delete;
+  Fn(Fn&&) = delete;
+  Fn& operator=(Fn&&) = delete;
+
   pkByteBuffer opcodes;  //< Buffer of opcodes.
   pkUintBuffer oplines;  //< Line number of opcodes for debug (1 based).
   int stack_size;        //< Maximum size of stack required.
@@ -340,6 +387,11 @@ public:
 
 class Function {
 public:
+  Function(const Function&) = delete;
+  Function& operator=(const Function&) = delete;
+  Function(Function&&) = delete;
+  Function& operator=(Function&&) = delete;
+
   Object _super;
 
   // The module that owns this function. Since built in functions doesn't
@@ -411,6 +463,11 @@ public:
 // via this upvalue has still access to the variable.
 class Closure {
 public:
+  Closure(const Closure&) = delete;
+  Closure& operator=(const Closure&) = delete;
+  Closure(Closure&&) = delete;
+  Closure& operator=(Closure&&) = delete;
+
   Object _super;
 
   Function* fn;
@@ -423,6 +480,11 @@ public:
 // called.
 class MethodBind {
 public:
+  MethodBind(const MethodBind&) = delete;
+  MethodBind& operator=(const MethodBind&) = delete;
+  MethodBind(MethodBind&&) = delete;
+  MethodBind& operator=(MethodBind&&) = delete;
+
   Object _super;
 
   Closure* method;
@@ -451,6 +513,11 @@ public:
 //
 class Upvalue {
 public:
+  Upvalue(const Upvalue&) = delete;
+  Upvalue& operator=(const Upvalue&) = delete;
+  Upvalue(Upvalue&&) = delete;
+  Upvalue& operator=(Upvalue&&) = delete;
+
   Object _super;
 
   // The pointer which points to the non-local variable, once the variable is
@@ -469,6 +536,12 @@ public:
 
 class CallFrame {
 public:
+  CallFrame() = default;
+  CallFrame(const CallFrame&) = default;
+  CallFrame(CallFrame&&) noexcept = default;
+  CallFrame& operator=(const CallFrame&) = default;
+  CallFrame& operator=(CallFrame&&) noexcept = default;
+
   const uint8_t* ip;      //< Pointer to the next instruction byte code.
   const Closure* closure; //< Closure of the frame.
   Var* rbp;               //< Stack base pointer. (%rbp)
@@ -484,6 +557,11 @@ typedef enum {
 
 class Fiber {
 public:
+  Fiber(const Fiber&) = delete;
+  Fiber& operator=(const Fiber&) = delete;
+  Fiber(Fiber&&) = delete;
+  Fiber& operator=(Fiber&&) = delete;
+
   Object _super;
 
   FiberState state;
@@ -534,6 +612,11 @@ public:
 
 class Class {
 public:
+  Class(const Class&) = delete;
+  Class& operator=(const Class&) = delete;
+  Class(Class&&) = delete;
+  Class& operator=(Class&&) = delete;
+
   Object _super;
 
   // The base class of this class.
@@ -571,12 +654,22 @@ public:
 
 class Inst {
 public:
+  Inst(const Inst&) = delete;
+  Inst& operator=(const Inst&) = delete;
+  Inst(Inst&&) = delete;
+  Inst& operator=(Inst&&) = delete;
+
   Class* type;        //< Class this instance belongs to.
   pkVarBuffer fields; //< Var buffer of the instance.
 };
 
 class Instance {
 public:
+  Instance(const Instance&) = delete;
+  Instance& operator=(const Instance&) = delete;
+  Instance(Instance&&) = delete;
+  Instance& operator=(Instance&&) = delete;
+
   Object _super;
 
   Class* cls; //< Class of the instance.

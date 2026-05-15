@@ -31,14 +31,20 @@ class Compiler;
 // (like lua does) it needs to be a somehow addressed (TODO:).
 class CompileOptions {
 public:
+  CompileOptions() = default;
+  ~CompileOptions() = default;
+  CompileOptions(const CompileOptions&) = default;
+  CompileOptions(CompileOptions&&) noexcept = default;
+  CompileOptions& operator=(const CompileOptions&) = default;
+  CompileOptions& operator=(CompileOptions&&) noexcept = default;
 
   // Compile debug version of the source. In release mode all the assertions
   // and debug informations will be stripped (TODO:) and wll be optimized.
-  bool debug;
+  bool debug = false;
 
   // Set to true if compiling in REPL mode, This will print repr version of
   // each evaluated non-null values.
-  bool repl_mode;
+  bool repl_mode = false;
 
 };
 
