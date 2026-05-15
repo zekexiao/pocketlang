@@ -203,7 +203,7 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
            "Overriding existing function not supported yet.");
   }
 
-  Function* fptr = newFunction(vm, name, (int) strlen(name), NULL,
+  Function* fptr = newFunction(vm, name, NULL,
                                true, docstring, NULL);
   vm->vmPushTempRef(static_cast<Object*>(fptr)); // fptr.
   fptr->native = fn;
@@ -270,7 +270,7 @@ PkHandle* pkNewClass(PKVM* vm, const char* name,
     super = (Class*)AS_OBJ(base_class->value());
   }
 
-  Class* class_ = newClass(vm, name, (int)strlen(name),
+  Class* class_ = newClass(vm, name,
                            super, (Module*)AS_OBJ(module->value()),
                            docstring, NULL);
   class_->new_fn = new_fn;
@@ -295,7 +295,7 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
 
   Class* class_ = (Class*)AS_OBJ(cls->value());
 
-  Function* fn = newFunction(vm, name, (int)strlen(name),
+  Function* fn = newFunction(vm, name,
                              class_->owner, true, docstring, NULL);
   vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
 
@@ -460,8 +460,7 @@ static inline bool isStringEmpty(const char* line) {
 // repl mode.
 Closure* moduleGetMainFunction(PKVM* vm, Module* module) {
 
-  int main_index = moduleGetGlobalIndex(module, IMPLICIT_MAIN_NAME,
-                                        (uint32_t) strlen(IMPLICIT_MAIN_NAME));
+  int main_index = moduleGetGlobalIndex(module, IMPLICIT_MAIN_NAME);
   if (main_index == -1) return NULL;
   ASSERT_INDEX(main_index, (int) module->globals.count);
   Var main_fn = module->globals.data[main_index];
@@ -530,7 +529,7 @@ PkResult pkRunREPL(PKVM* vm) {
 
     // Add the line to the lines buffer.
     if (lines.count != 0) pkBufferWrite(&lines, vm, '\n');
-    pkByteBufferAddString(&lines, vm, line, (uint32_t) line_length);
+    pkByteBufferAddString(&lines, vm, {line, line_length});
     pkRealloc(vm, line, 0);
     pkBufferWrite(&lines, vm, '\0');
 
@@ -687,7 +686,7 @@ bool pkValidateSlotType(PKVM* vm, int slot, PkVarType type) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(slot);
   if (getVarType(ARG(slot)) != type) {
-    ERR_INVALID_SLOT_TYPE(slot, getPkVarTypeName(type));
+    ERR_INVALID_SLOT_TYPE(slot, getPkVarTypeName(type).data());
     return false;
   }
 

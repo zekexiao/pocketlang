@@ -26,11 +26,10 @@
 // capacity by the GROW_FACTOR.
 #define GROW_FACTOR 2
 
-void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, const char* str,
-                           uint32_t length) {
-  pkBufferReserve(self, vm, (size_t) self->count + length);
-  for (uint32_t i = 0; i < length; i++) {
-    self->data[self->count++] = *(str++);
+void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, std::string_view text) {
+  pkBufferReserve(self, vm, (size_t) self->count + text.size());
+  for (char c : text) {
+    self->data[self->count++] = (uint8_t)c;
   }
 }
 
@@ -273,12 +272,8 @@ double varToDouble(Var value) {
   return utilDoubleFromBits(value);
 }
 
-String* String::create(PKVM* vm, const char* text, uint32_t length) {
-  return newStringLength(vm, text, length);
-}
-
-String* String::create(PKVM* vm, const char* text) {
-  return newStringLength(vm, text, (!(text)) ? 0 : (uint32_t)strlen(text));
+String* String::create(PKVM* vm, std::string_view text) {
+  return newStringLength(vm, text);
 }
 
 String* String::lower(PKVM* vm) { return stringLower(vm, this); }
@@ -320,14 +315,12 @@ static String* _allocateString(PKVM* vm, size_t length) {
   return string;
 }
 
-String* newStringLength(PKVM* vm, const char* text, uint32_t length) {
+String* newStringLength(PKVM* vm, std::string_view text) {
 
-  ASSERT(length == 0 || text != NULL, "Unexpected NULL string.");
+  String* string = _allocateString(vm, text.size());
 
-  String* string = _allocateString(vm, length);
-
-  if (length != 0 && text != NULL) memcpy(string->data, text, length);
-  string->hash = utilHashString(string->data);
+  if (!text.empty()) memcpy(string->data, text.data(), text.size());
+  string->hash = utilHashString({string->data, string->length});
 
   return string;
 }
@@ -340,7 +333,7 @@ String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args) {
 
   String* string = _allocateString(vm, (size_t) length);
   vsnprintf(string->data, string->capacity, fmt, args);
-  string->hash = utilHashString(string->data);
+  string->hash = utilHashString({string->data, string->length});
 
   return string;
 }
@@ -387,7 +380,7 @@ Module* newModule(PKVM* vm) {
   return module;
 }
 
-Function* newFunction(PKVM* vm, const char* name, int length,
+Function* newFunction(PKVM* vm, std::string_view name,
                       Module* owner,
                       bool is_native, const char* docstring,
                       int* fn_index) {
@@ -409,13 +402,15 @@ Function* newFunction(PKVM* vm, const char* name, int length,
 
   // Only builtin function does't have an owner module.
   if (is_native && owner == NULL) {
-    func->name = name;
+    // Store a pointer into a module names buffer entry or a C literal.
+    // Callers are responsible for keeping the pointed-to data alive.
+    func->name = name.data();
     func->native = NULL;
 
   } else {
     uint32_t _fn_index = moduleAddConstant(vm, owner, VAR_OBJ(func));
     if (fn_index) *fn_index = _fn_index;
-    func->name = moduleAddString(owner, vm, name, length, NULL)->data;
+    func->name = moduleAddString(owner, vm, name, NULL)->data;
 
     if (is_native) {
       func->native = NULL;
@@ -530,7 +525,7 @@ Fiber* newFiber(PKVM* vm, Closure* closure) {
   return fiber;
 }
 
-Class* newClass(PKVM* vm, const char* name, int length,
+Class* newClass(PKVM* vm, std::string_view name,
                 Class* super, Module* module,
                 const char* docstring, int* cls_index) {
 
@@ -554,12 +549,12 @@ Class* newClass(PKVM* vm, const char* name, int length,
 
   // Builtin types doesn't belongs to a module.
   if (module != NULL) {
-    cls->name = moduleAddString(module, vm, name, length, NULL);
+    cls->name = moduleAddString(module, vm, name, NULL);
     int _cls_index = moduleAddConstant(vm, module, VAR_OBJ(cls));
     if (cls_index) *cls_index = _cls_index;
-    moduleSetGlobal(vm, module, name, length, VAR_OBJ(cls));
+    moduleSetGlobal(vm, module, name, VAR_OBJ(cls));
   } else {
-    cls->name = newStringLength(vm, name, (uint32_t)length);
+    cls->name = newStringLength(vm, name);
   }
 
   vm->vmPopTempRef(); // class.
@@ -620,7 +615,7 @@ String* stringLower(PKVM* vm, String* self) {
       for (; *_c != '\0'; _c++) *_c = (char) tolower(*_c);
 
       // Since the string is modified re-hash it.
-      lower->hash = utilHashString(lower->data);
+      lower->hash = utilHashString({lower->data, lower->length});
       return lower;
     }
   }
@@ -641,7 +636,7 @@ String* stringUpper(PKVM* vm, String* self) {
       for (; *_c != '\0'; _c++) *_c = (char) toupper(*_c);
 
       // Since the string is modified re-hash it.
-      upper->hash = utilHashString(upper->data);
+      upper->hash = utilHashString({upper->data, upper->length});
       return upper;
     }
   }
@@ -667,7 +662,7 @@ String* stringStrip(PKVM* vm, String* self) {
   // If we reached the end of the string, it's all white space, return
   // an empty string.
   if (*start == '\0') {
-    return newStringLength(vm, NULL, 0);
+    return newStringLength(vm, std::string_view{});
   }
 
   const char* end = self->data + self->length - 1;
@@ -678,7 +673,7 @@ String* stringStrip(PKVM* vm, String* self) {
     return self;
   }
 
-  return newStringLength(vm, start, (uint32_t)(end - start + 1));
+  return newStringLength(vm, {start, (size_t)(end - start + 1)});
 }
 
 String* stringReplace(PKVM* vm, String* self,
@@ -740,7 +735,8 @@ String* stringReplace(PKVM* vm, String* self,
     // Note that since we're not allocating anything else here, this string
     // doesn't needs to pushed to VM's temp references.
     if (replacedc == 0) {
-      replaced = newStringLength(vm, "", length);
+      // Allocate a scratch buffer of max `length` bytes for the result.
+      replaced = _allocateString(vm, length);
       d = replaced->data;
     }
 
@@ -767,7 +763,7 @@ String* stringReplace(PKVM* vm, String* self,
     replaced->length = (int32_t) (d - replaced->data);
     ASSERT(replaced->length < replaced->capacity, OOPS);
     replaced->data[replaced->length] = '\0';
-    replaced->hash = utilHashString(replaced->data);
+    replaced->hash = utilHashString({replaced->data, (size_t)replaced->length});
 
   } else {
     ASSERT(self == replaced, OOPS);
@@ -795,8 +791,8 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
         listAppend(vm, list, VAR_OBJ(self));
 
       } else {
-        String* tail = newStringLength(vm, s,
-          (uint32_t)(self->length - (s - self->data)));
+        String* tail = newStringLength(vm, {s,
+          (size_t)(self->length - (s - self->data))});
         vm->vmPushTempRef(static_cast<Object*>(tail)); // tail.
         listAppend(vm, list, VAR_OBJ(tail));
         vm->vmPopTempRef(); // tail.
@@ -805,7 +801,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
       break; // We're done.
     }
 
-    String* split = newStringLength(vm, s, (uint32_t)(match - s));
+    String* split = newStringLength(vm, {s, (size_t)(match - s)});
     vm->vmPushTempRef(static_cast<Object*>(split)); // split.
     listAppend(vm, list, VAR_OBJ(split));
     vm->vmPopTempRef(); // split.
@@ -870,7 +866,7 @@ String* stringFormat(PKVM* vm, const char* fmt, ...) {
   }
   va_end(arg_list);
 
-  result->hash = utilHashString(result->data);
+  result->hash = utilHashString({result->data, result->length});
   return result;
 }
 
@@ -887,7 +883,7 @@ String* stringJoin(PKVM* vm, String* str1, String* str2) {
   memcpy(string->data + str1->length, str2->data, str2->length);
   // Null byte already existed. From _allocateString.
 
-  string->hash = utilHashString(string->data);
+  string->hash = utilHashString({string->data, string->length});
   return string;
 }
 
@@ -1266,13 +1262,14 @@ uint32_t moduleAddConstant(PKVM* vm, Module* module, Var value) {
   return (int)module->constants.count - 1;
 }
 
-String* moduleAddString(Module* module, PKVM* vm, const char* name,
-                        uint32_t length, int* index) {
+String* moduleAddString(Module* module, PKVM* vm, std::string_view name,
+                        int* index) {
 
   for (uint32_t i = 0; i < module->constants.count; i++) {
     if (!IS_OBJ_TYPE(module->constants.data[i], OBJ_STRING)) continue;
     String* _name = (String*)AS_OBJ(module->constants.data[i]);
-    if (_name->length == length && strncmp(_name->data, name, length) == 0) {
+    if (_name->length == name.size() &&
+        strncmp(_name->data, name.data(), name.size()) == 0) {
       // Name already exists in the buffer.
       if (index) *index = i;
       return _name;
@@ -1281,7 +1278,7 @@ String* moduleAddString(Module* module, PKVM* vm, const char* name,
 
   // If we reach here the name doesn't exists in the buffer, so add it and
   // return the index.
-  String* new_name = newStringLength(vm, name, length);
+  String* new_name = newStringLength(vm, name);
   vm->vmPushTempRef(static_cast<Object*>(new_name)); // new_name
   pkBufferWrite(&module->constants, vm, VAR_OBJ(new_name));
   vm->vmPopTempRef(); // new_name
@@ -1300,11 +1297,11 @@ String* moduleGetStringAt(Module* module, int index) {
 }
 
 uint32_t moduleSetGlobal(PKVM* vm, Module* module,
-                         const char* name, uint32_t length,
+                         std::string_view name,
                          Var value) {
 
   // If already exists update the value.
-  int g_index = moduleGetGlobalIndex(module, name, length);
+  int g_index = moduleGetGlobalIndex(module, name);
   if (g_index != -1) {
     ASSERT(g_index < (int)module->globals.count, OOPS);
     module->globals.data[g_index] = value;
@@ -1314,18 +1311,19 @@ uint32_t moduleSetGlobal(PKVM* vm, Module* module,
   // If we're reached here that means we don't already have a variable with
   // that name, create new one and set the value.
   int name_index = 0;
-  moduleAddString(module, vm, name, length, &name_index);
+  moduleAddString(module, vm, name, &name_index);
   pkBufferWrite(&module->global_names, vm, name_index);
   pkBufferWrite(&module->globals, vm, value);
   return module->globals.count - 1;
 }
 
-int moduleGetGlobalIndex(Module* module, const char* name, uint32_t length) {
+int moduleGetGlobalIndex(Module* module, std::string_view name) {
   for (uint32_t i = 0; i < module->global_names.count; i++) {
     uint32_t name_index = module->global_names.data[i];
     String* g_name = moduleGetStringAt(module, name_index);
     ASSERT(g_name != NULL, OOPS);
-    if (g_name->length == length && strncmp(g_name->data, name, length) == 0) {
+    if (g_name->length == name.size() &&
+        strncmp(g_name->data, name.data(), name.size()) == 0) {
       return (int)i;
     }
   }
@@ -1337,8 +1335,7 @@ void moduleAddMain(PKVM* vm, Module* module) {
 
   module->initialized = false;
 
-  const char* fn_name = IMPLICIT_MAIN_NAME;
-  Function* body_fn = newFunction(vm, fn_name, (int)strlen(fn_name),
+  Function* body_fn = newFunction(vm, IMPLICIT_MAIN_NAME,
                                   module, false, NULL/*TODO*/, NULL);
   body_fn->arity = 0;
 
@@ -1346,9 +1343,7 @@ void moduleAddMain(PKVM* vm, Module* module) {
   module->body = newClosure(vm, body_fn);
   vm->vmPopTempRef(); // body_fn.
 
-  moduleSetGlobal(vm, module,
-                  IMPLICIT_MAIN_NAME, (uint32_t)strlen(IMPLICIT_MAIN_NAME),
-                  VAR_OBJ(module->body));
+  moduleSetGlobal(vm, module, IMPLICIT_MAIN_NAME, VAR_OBJ(module->body));
 }
 
 /*****************************************************************************/
@@ -1399,7 +1394,7 @@ ObjectType getPkVarObjType(PkVarType type) {
   return (ObjectType) -1;
 }
 
-const char* getPkVarTypeName(PkVarType type) {
+std::string_view getPkVarTypeName(PkVarType type) {
   switch (type) {
     case PK_OBJECT:   return "Object";
     case PK_NULL:     return "Null";
@@ -1410,10 +1405,10 @@ const char* getPkVarTypeName(PkVarType type) {
   }
 
   UNREACHABLE();
-  return NULL;
+  return {};
 }
 
-const char* getObjectTypeName(ObjectType type) {
+std::string_view getObjectTypeName(ObjectType type) {
   switch (type) {
     case OBJ_STRING:  return "String";
     case OBJ_LIST:    return "List";
@@ -1429,10 +1424,10 @@ const char* getObjectTypeName(ObjectType type) {
     case OBJ_INST:    return "Inst";
   }
   UNREACHABLE();
-  return NULL;
+  return {};
 }
 
-const char* varTypeName(Var v) {
+std::string_view varTypeName(Var v) {
   if (IS_NULL(v)) return "Null";
   if (IS_BOOL(v)) return "Bool";
   if (IS_NUM(v))  return "Number";
@@ -1441,7 +1436,8 @@ const char* varTypeName(Var v) {
   Object* obj = AS_OBJ(v);
 
   if (obj->type == OBJ_INST) {
-    return ((Instance*)obj)->cls->name->data;
+    const String* name = ((Instance*)obj)->cls->name;
+    return {name->data, name->length};
   }
 
   return getObjectTypeName(obj->type);
@@ -1548,31 +1544,30 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
   ASSERT(outer == NULL || repr, OOPS);
 
   if (IS_NULL(v)) {
-    pkByteBufferAddString(buff, vm, "null", 4);
+    pkByteBufferAddString(buff, vm, "null");
     return;
 
   } else if (IS_BOOL(v)) {
-    if (AS_BOOL(v)) pkByteBufferAddString(buff, vm, "true", 4);
-    else pkByteBufferAddString(buff, vm, "false", 5);
+    if (AS_BOOL(v)) pkByteBufferAddString(buff, vm, "true");
+    else pkByteBufferAddString(buff, vm, "false");
     return;
 
   } else if (IS_NUM(v)) {
     double value = AS_NUM(v);
 
     if (isnan(value)) {
-      pkByteBufferAddString(buff, vm, "nan", 3);
+      pkByteBufferAddString(buff, vm, "nan");
 
     } else if (isinf(value)) {
       if (value > 0.0) {
-        pkByteBufferAddString(buff, vm, "+inf", 4);
+        pkByteBufferAddString(buff, vm, "+inf");
       } else {
-        pkByteBufferAddString(buff, vm, "-inf", 4);
+        pkByteBufferAddString(buff, vm, "-inf");
       }
 
     } else {
       const std::string num_str = std::format("{:.16g}", AS_NUM(v));
-      pkByteBufferAddString(buff, vm, num_str.c_str(),
-                            (uint32_t)num_str.size());
+      pkByteBufferAddString(buff, vm, num_str);
     }
 
     return;
@@ -1586,7 +1581,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
       {
         const String* str = (const String*)obj;
         if (outer == NULL && !repr) {
-          pkByteBufferAddString(buff, vm, str->data, str->length);
+          pkByteBufferAddString(buff, vm, {str->data, str->length});
           return;
         } else {
           // If recursive return with quotes (ex: [42, "hello", 0..10]).
@@ -1594,11 +1589,11 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
           for (uint32_t i = 0; i < str->length; i++) {
             char c = str->data[i];
             switch (c) {
-              case '"':  pkByteBufferAddString(buff, vm, "\\\"", 2); break;
-              case '\\': pkByteBufferAddString(buff, vm, "\\\\", 2); break;
-              case '\n': pkByteBufferAddString(buff, vm, "\\n", 2); break;
-              case '\r': pkByteBufferAddString(buff, vm, "\\r", 2); break;
-              case '\t': pkByteBufferAddString(buff, vm, "\\t", 2); break;
+              case '"':  pkByteBufferAddString(buff, vm, "\\\""); break;
+              case '\\': pkByteBufferAddString(buff, vm, "\\\\"); break;
+              case '\n': pkByteBufferAddString(buff, vm, "\\n"); break;
+              case '\r': pkByteBufferAddString(buff, vm, "\\r"); break;
+              case '\t': pkByteBufferAddString(buff, vm, "\\t"); break;
 
               default: {
                 // if c isn't in range 0x00 to 0xff, isprintc()
@@ -1606,7 +1601,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
                 if ((0x00 <= c && c <= 0xff) && isprint(c)) {
                   pkBufferWrite(buff, vm, c);
                 } else {
-                  pkByteBufferAddString(buff, vm, "\\x", 2);
+                  pkByteBufferAddString(buff, vm, "\\x");
                   uint8_t byte = (uint8_t) c;
                   pkBufferWrite(buff, vm, utilHexDigit(((byte >> 4) & 0xf),
                                     false));
@@ -1626,7 +1621,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
       {
         const List* list = (const List*)obj;
         if (list->elements.count == 0) {
-          pkByteBufferAddString(buff, vm, "[]", 2);
+          pkByteBufferAddString(buff, vm, "[]");
           return;
         }
 
@@ -1634,7 +1629,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         OuterSequence* seq = outer;
         while (seq != NULL) {
           if (seq->is_list && seq->list == list) {
-            pkByteBufferAddString(buff, vm, "[...]", 5);
+            pkByteBufferAddString(buff, vm, "[...]");
             return;
           }
           seq = seq->outer;
@@ -1644,7 +1639,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
 
         pkBufferWrite(buff, vm, '[');
         for (uint32_t i = 0; i < list->elements.count; i++) {
-          if (i != 0) pkByteBufferAddString(buff, vm, ", ", 2);
+          if (i != 0) pkByteBufferAddString(buff, vm, ", ");
           _toStringInternal(vm, list->elements.data[i], buff, &seq_list, true);
         }
         pkBufferWrite(buff, vm, ']');
@@ -1655,7 +1650,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
       {
         const Map* map = (const Map*)obj;
         if (map->entries == NULL) {
-          pkByteBufferAddString(buff, vm, "{}", 2);
+          pkByteBufferAddString(buff, vm, "{}");
           return;
         }
 
@@ -1663,7 +1658,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         OuterSequence* seq = outer;
         while (seq != NULL) {
           if (!seq->is_list && seq->map == map) {
-            pkByteBufferAddString(buff, vm, "{...}", 5);
+            pkByteBufferAddString(buff, vm, "{...}");
             return;
           }
           seq = seq->outer;
@@ -1686,7 +1681,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
           }
           if (_done) break;
 
-          if (!_first) pkByteBufferAddString(buff, vm, ", ", 2);
+          if (!_first) pkByteBufferAddString(buff, vm, ", ");
 
           _toStringInternal(vm, map->entries[i].key, buff, &seq_map, true);
           pkBufferWrite(buff, vm, ':');
@@ -1705,26 +1700,24 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         const std::string from_str = std::format("{:.16g}", range->from);
         const std::string to_str = std::format("{:.16g}", range->to);
 
-        pkByteBufferAddString(buff, vm, "[Range:", 7);
-        pkByteBufferAddString(buff, vm, from_str.c_str(),
-                              (uint32_t)from_str.size());
-        pkByteBufferAddString(buff, vm, "..", 2);
-        pkByteBufferAddString(buff, vm, to_str.c_str(),
-                              (uint32_t)to_str.size());
+        pkByteBufferAddString(buff, vm, "[Range:");
+        pkByteBufferAddString(buff, vm, from_str);
+        pkByteBufferAddString(buff, vm, "..");
+        pkByteBufferAddString(buff, vm, to_str);
         pkBufferWrite(buff, vm, ']');
         return;
       }
 
       case OBJ_MODULE: {
         const Module* module = (const Module*)obj;
-        pkByteBufferAddString(buff, vm, "[Module:", 8);
+        pkByteBufferAddString(buff, vm, "[Module:");
         if (module->name != NULL) {
-          pkByteBufferAddString(buff, vm, module->name->data,
-                              module->name->length);
+          pkByteBufferAddString(buff, vm, {module->name->data,
+                              module->name->length});
         } else {
           pkBufferWrite(buff, vm, '"');
-          pkByteBufferAddString(buff, vm, module->path->data,
-                                module->path->length);
+          pkByteBufferAddString(buff, vm, {module->path->data,
+                                module->path->length});
           pkBufferWrite(buff, vm, '"');
         }
         pkBufferWrite(buff, vm, ']');
@@ -1733,47 +1726,44 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
 
       case OBJ_FUNC: {
         const Function* fn = (const Function*) obj;
-        pkByteBufferAddString(buff, vm, "[Func:", 6);
-        pkByteBufferAddString(buff, vm, fn->name, (uint32_t)strlen(fn->name));
+        pkByteBufferAddString(buff, vm, "[Func:");
+        pkByteBufferAddString(buff, vm, fn->name);
         pkBufferWrite(buff, vm, ']');
         return;
       }
 
       case OBJ_CLOSURE: {
         const Closure* closure = (const Closure*) obj;
-        pkByteBufferAddString(buff, vm, "[Closure:", 9);
-        pkByteBufferAddString(buff, vm, closure->fn->name,
-                                        (uint32_t)strlen(closure->fn->name));
+        pkByteBufferAddString(buff, vm, "[Closure:");
+        pkByteBufferAddString(buff, vm, closure->fn->name);
         pkBufferWrite(buff, vm, ']');
         return;
       }
       case OBJ_METHOD_BIND: {
         const MethodBind* mb = (const MethodBind*) obj;
-        pkByteBufferAddString(buff, vm, "[MethodBind:", 12);
-        pkByteBufferAddString(buff, vm, mb->method->fn->name,
-                              (uint32_t)strlen(mb->method->fn->name));
+        pkByteBufferAddString(buff, vm, "[MethodBind:");
+        pkByteBufferAddString(buff, vm, mb->method->fn->name);
         pkBufferWrite(buff, vm, ']');
         return;
       }
 
       case OBJ_FIBER: {
         const Fiber* fb = (const Fiber*) obj;
-        pkByteBufferAddString(buff, vm, "[Fiber:", 7);
-        pkByteBufferAddString(buff, vm, fb->closure->fn->name,
-                            (uint32_t)strlen(fb->closure->fn->name));
+        pkByteBufferAddString(buff, vm, "[Fiber:");
+        pkByteBufferAddString(buff, vm, fb->closure->fn->name);
         pkBufferWrite(buff, vm, ']');
         return;
       }
 
       case OBJ_UPVALUE: {
-        pkByteBufferAddString(buff, vm, "[Upvalue]", 9);
+        pkByteBufferAddString(buff, vm, "[Upvalue]");
         return;
       }
 
       case OBJ_CLASS: {
         const Class* cls = (const Class*)obj;
-        pkByteBufferAddString(buff, vm, "[Class:", 7);
-        pkByteBufferAddString(buff, vm, cls->name->data, cls->name->length);
+        pkByteBufferAddString(buff, vm, "[Class:");
+        pkByteBufferAddString(buff, vm, {cls->name->data, cls->name->length});
         pkBufferWrite(buff, vm, ']');
         return;
       }
@@ -1783,13 +1773,12 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         const Instance* inst = (const Instance*)obj;
         pkBufferWrite(buff, vm, '[');
         pkBufferWrite(buff, vm, '\'');
-        pkByteBufferAddString(buff, vm, inst->cls->name->data,
-          inst->cls->name->length);
-        pkByteBufferAddString(buff, vm, "' instance at ", 14);
+        pkByteBufferAddString(buff, vm, {inst->cls->name->data,
+          inst->cls->name->length});
+        pkByteBufferAddString(buff, vm, "' instance at ");
         const std::string addr_str = std::format(
           "0x{:08x}", (unsigned int)(uintptr_t)inst);
-        pkByteBufferAddString(buff, vm, addr_str.c_str(),
-                              (uint32_t)addr_str.size());
+        pkByteBufferAddString(buff, vm, addr_str);
         pkBufferWrite(buff, vm, ']');
         return;
       }
@@ -1810,7 +1799,7 @@ String* toString(PKVM* vm, const Var value) {
   pkByteBuffer buff;
   pkBufferInit(&buff);
   _toStringInternal(vm, value, &buff, NULL, false);
-  String* ret = newStringLength(vm, (const char*)buff.data, buff.count);
+  String* ret = newStringLength(vm, {(const char*)buff.data, buff.count});
   pkBufferClear(&buff, vm);
   return ret;
 }
@@ -1819,7 +1808,7 @@ String* toRepr(PKVM* vm, const Var value) {
   pkByteBuffer buff;
   pkBufferInit(&buff);
   _toStringInternal(vm, value, &buff, NULL, true);
-  String* ret = newStringLength(vm, (const char*)buff.data, buff.count);
+  String* ret = newStringLength(vm, {(const char*)buff.data, buff.count});
   pkBufferClear(&buff, vm);
   return ret;
 }

@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_view>
 
 // __STDC_LIMIT_MACROS and __STDC_CONSTANT_MACROS are a workaround to
 // allow C++ programs to use stdint.h macros specified in the C99

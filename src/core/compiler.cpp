@@ -571,8 +571,8 @@ public:
   void consumeStartBlock(_TokenType delimiter);
   bool matchAssignment();
   int addUpvalue(Func* func, int index, bool is_immediate);
-  int findUpvalue(Func* func, const char* name, uint32_t length);
-  NameSearchResult searchName(const char* name, uint32_t length);
+  int findUpvalue(Func* func, std::string_view name);
+  NameSearchResult searchName(std::string_view name);
   void emitStoreGlobal(int index);
   void emitPushValue(NameDefnType type, int index);
   void emitStoreValue(NameDefnType type, int index);
@@ -648,8 +648,7 @@ static OpInfo opcode_info[] = {
 // This forward declaration can be removed once the interpolated string's
 // "list_join" function replaced with BUILD_STRING opcode. (The declaration
 // needed at compiler initialization function to find the "list_join" function.
-static int findBuiltinFunction(const PKVM* vm,
-                               const char* name, uint32_t length);
+static int findBuiltinFunction(const PKVM* vm, std::string_view name);
 
 // This should be called once the compiler initialized (to access it's fields).
 void Parser::init(PKVM* vm, Compiler* compiler,
@@ -716,7 +715,7 @@ void Compiler::init(PKVM* vm, const char* source,
   this->parser.init(vm, this, source, source_path);
 
   // Cache the required built functions.
-  this->bifn_list_join = findBuiltinFunction(vm, "list_join", 9);
+  this->bifn_list_join = findBuiltinFunction(vm, "list_join");
   ASSERT(this->bifn_list_join >= 0, OOPS);
 }
 
@@ -1481,12 +1480,11 @@ bool Compiler::matchAssignment() {
 
 // Find the builtin function name and returns it's index in the builtins array
 // if not found returns -1.
-static int findBuiltinFunction(const PKVM* vm,
-                               const char* name, uint32_t length) {
+static int findBuiltinFunction(const PKVM* vm, std::string_view name) {
   for (int i = 0; i < vm->builtins_count; i++) {
-    uint32_t bfn_length = (uint32_t)strlen(vm->builtins_funcs[i]->fn->name);
-    if (bfn_length != length) continue;
-    if (strncmp(name, vm->builtins_funcs[i]->fn->name, length) == 0) {
+    const char* fn_name = vm->builtins_funcs[i]->fn->name;
+    if (name.size() == strlen(fn_name) &&
+        strncmp(name.data(), fn_name, name.size()) == 0) {
       return i;
     }
   }
@@ -1495,10 +1493,11 @@ static int findBuiltinFunction(const PKVM* vm,
 
 // Find the builtin classes name and returns it's index in the VM's builtin
 // classes array, if not found returns -1.
-static int findBuiltinClass(const PKVM* vm,
-                            const char* name, uint32_t length) {
+static int findBuiltinClass(const PKVM* vm, std::string_view name) {
   for (int i = 0; i < PK_INSTANCE; i++) {
-    if (IS_CSTR_EQ(vm->builtin_classes[i]->name, name, length)) {
+    const String* cls_name = vm->builtin_classes[i]->name;
+    if (cls_name->length == name.size() &&
+        strncmp(cls_name->data, name.data(), name.size()) == 0) {
       return i;
     }
   }
@@ -1507,11 +1506,11 @@ static int findBuiltinClass(const PKVM* vm,
 
 // Find the local with the [name] in the given function [func] and return
 // it's index, if not found returns -1.
-static int findLocal(Func* func, const char* name, uint32_t length) {
+static int findLocal(Func* func, std::string_view name) {
   ASSERT(func != NULL, OOPS);
   for (int i = 0; i < func->local_count; i++) {
-    if (func->locals[i].length != length) continue;
-    if (strncmp(func->locals[i].name, name, length) == 0) {
+    if ((size_t)func->locals[i].length != name.size()) continue;
+    if (strncmp(func->locals[i].name, name.data(), name.size()) == 0) {
       return i;
     }
   }
@@ -1545,7 +1544,7 @@ int Compiler::addUpvalue(Func* func, int index, bool is_immediate) {
 // If an upvalue found, it'll add the upvalue info to the upvalue infor array
 // of the [func] and return the index of the upvalue in the current function's
 // upvalues array.
-int Compiler::findUpvalue(Func* func, const char* name, uint32_t length) {
+int Compiler::findUpvalue(Func* func, std::string_view name) {
   // TODO:
   // check if the function is a method of a class and return -1 for them as
   // well (once methods implemented).
@@ -1554,7 +1553,7 @@ int Compiler::findUpvalue(Func* func, const char* name, uint32_t length) {
   if (func->depth <= DEPTH_GLOBAL) return -1;
 
   // Search in the immediate enclosing function's locals.
-  int index = findLocal(func->outer_func, name, length);
+  int index = findLocal(func->outer_func, name);
   if (index != -1) {
 
     // Mark the locals as an upvalue to close it when it goes out of the scope.
@@ -1567,7 +1566,7 @@ int Compiler::findUpvalue(Func* func, const char* name, uint32_t length) {
   // Recursively search for the upvalue in the outer function. If we found one
   // all the outer function in the chain would have captured the upvalue for
   // the local, we can add it to the current function as non-immediate upvalue.
-  index = findUpvalue(func->outer_func, name, length);
+  index = findUpvalue(func->outer_func, name);
 
   if (index != -1) {
     return addUpvalue(func, index, false);
@@ -1578,7 +1577,7 @@ int Compiler::findUpvalue(Func* func, const char* name, uint32_t length) {
 }
 
 // Will check if the name already defined.
-NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
+NameSearchResult Compiler::searchName(std::string_view name) {
 
   NameSearchResult result;
   result.type = NAME_NOT_DEFINED;
@@ -1586,7 +1585,7 @@ NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
   int index; // For storing the search result below.
 
   // Search through locals.
-  index = findLocal(this->func, name, length);
+  index = findLocal(this->func, name);
   if (index != -1) {
     result.type = NAME_LOCAL_VAR;
     result.index = index;
@@ -1594,7 +1593,7 @@ NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
   }
 
   // Search through upvalues.
-  index = findUpvalue(this->func, name, length);
+  index = findUpvalue(this->func, name);
   if (index != -1) {
     result.type = NAME_UPVALUE;
     result.index = index;
@@ -1602,7 +1601,7 @@ NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
   }
 
   // Search through globals.
-  index = moduleGetGlobalIndex(this->module, name, length);
+  index = moduleGetGlobalIndex(this->module, name);
   if (index != -1) {
     result.type = NAME_GLOBAL_VAR;
     result.index = index;
@@ -1610,14 +1609,14 @@ NameSearchResult Compiler::searchName(const char* name, uint32_t length) {
   }
 
   // Search through builtin functions.
-  index = findBuiltinFunction(this->parser.vm, name, length);
+  index = findBuiltinFunction(this->parser.vm, name);
   if (index != -1) {
     result.type = NAME_BUILTIN_FN;
     result.index = index;
     return result;
   }
 
-  index = findBuiltinClass(this->parser.vm, name, length);
+  index = findBuiltinClass(this->parser.vm, name);
   if (index != -1) {
     result.type = NAME_BUILTIN_TY;
     result.index = index;
@@ -1959,7 +1958,7 @@ void Compiler::exprName() {
   const char* start = tkname.start;
   int length = tkname.length;
   int line = tkname.line;
-  NameSearchResult result = searchName(start, length);
+  NameSearchResult result = searchName({start, (size_t)length});
 
   if (this->l_value && matchAssignment()) {
     _TokenType assignment = this->parser.previous.type;
@@ -2220,7 +2219,7 @@ void Compiler::exprAttrib() {
   // Store the name in module's names buffer.
   int index = 0;
   moduleAddString(this->module, this->parser.vm,
-                  name, length, &index);
+                  {name, (size_t)length}, &index);
 
   // Check if it's a method call.
   if (match(TK_LPARAN)) {
@@ -2341,7 +2340,7 @@ void Compiler::exprSuper() {
 
   emitOpcode(OP_PUSH_SELF);
   moduleAddString(this->module, this->parser.vm,
-                  name, name_length, &index);
+                  {name, (size_t)name_length}, &index);
   _compileCall(OP_SUPER_CALL, index);
 }
 
@@ -2430,7 +2429,7 @@ int Compiler::addVariable(const char* name, uint32_t length, int line) {
 
   if (this->scope_depth == DEPTH_GLOBAL) {
     return (int)moduleSetGlobal(this->parser.vm, this->module,
-                                name, length, VAR_NULL);
+                                {name, (size_t)length}, VAR_NULL);
   } else {
     Local* local = &this->func->locals[this->func->local_count];
     local->name = name;
@@ -3417,17 +3416,18 @@ void Compiler::compileTopLevelStatement() {
 
 }
 
-PkResult compile(PKVM* vm, Module* module, const char* source,
+PkResult compile(PKVM* vm, Module* module, std::string_view source,
                  const CompileOptions* options) {
 
   ASSERT(module != NULL, OOPS);
 
   // Skip utf8 BOM if there is any.
-  if (strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
+  const char* src = source.data();
+  if (strncmp(src, "\xEF\xBB\xBF", 3) == 0) src += 3;
 
   Compiler _compiler;
   Compiler* compiler = &_compiler; //< Compiler pointer for quick access.
-  compiler->init(vm, source, module, options);
+  compiler->init(vm, src, module, options);
 
   // If compiling for an imported module the vm->compiler would be the compiler
   // of the module that imported this module. Add the all the compilers into a
@@ -3472,8 +3472,8 @@ PkResult compile(PKVM* vm, Module* module, const char* source,
       ForwardName* forward = &compiler->parser.forwards[i];
       const char* name = forward->tkname.start;
       int length = forward->tkname.length;
-      int index = moduleGetGlobalIndex(compiler->module, name,
-                                       (uint32_t)length);
+      int index = moduleGetGlobalIndex(compiler->module,
+                                       {name, (size_t)length});
       if (index != -1) {
         compiler->patchForward(forward->func, forward->instruction, index);
       } else {

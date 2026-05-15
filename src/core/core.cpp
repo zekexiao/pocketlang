@@ -164,10 +164,10 @@ void initializeModule(PKVM* vm, Module* module, bool is_main) {
   // resolving function would do take care of it) which is something that
   // was added after python 3.9.
   if (path != NULL) {
-    moduleSetGlobal(vm, module, "__file__", 8, VAR_OBJ(path));
+    moduleSetGlobal(vm, module, "__file__", VAR_OBJ(path));
   }
 
-  moduleSetGlobal(vm, module, "_name", 5, VAR_OBJ(name));
+  moduleSetGlobal(vm, module, "_name", VAR_OBJ(name));
 
   if (is_main) vm->vmPopTempRef(); // _main.
 }
@@ -467,7 +467,7 @@ DEF(coreBin,
   if (negative) *ptr-- = '-';
 
   uint32_t length = (uint32_t)((buff + STR_BIN_BUFF_SIZE - 1) - (ptr + 1));
-  RET(VAR_OBJ(newStringLength(vm, ptr + 1, length)));
+  RET(VAR_OBJ(newStringLength(vm, {ptr + 1, length})));
 }
 
 DEF(coreHex,
@@ -487,7 +487,7 @@ DEF(coreHex,
   uint32_t _x = (uint32_t)((value < 0) ? -value : value);
   const std::string hex = std::format("{}0x{:x}", (value < 0) ? "-" : "", _x);
 
-  RET(VAR_OBJ(newStringLength(vm, hex.c_str(), (uint32_t)hex.size())));
+  RET(VAR_OBJ(newStringLength(vm, hex)));
 }
 
 DEF(coreYield,
@@ -526,7 +526,7 @@ DEF(coreChr,
   }
 
   char c = (char) num;
-  RET(VAR_OBJ(newStringLength(vm, &c, 1)));
+  RET(VAR_OBJ(newStringLength(vm, {&c, 1})));
 }
 
 DEF(coreOrd,
@@ -665,19 +665,19 @@ DEF(coreListJoin,
     String* str = varToString(vm, list->elements.data[i], false);
     if (str == NULL) RET(VAR_NULL);
     vm->vmPushTempRef(static_cast<Object*>(str)); // elem
-    pkByteBufferAddString(&buff, vm, str->data, str->length);
+    pkByteBufferAddString(&buff, vm, {str->data, str->length});
     vm->vmPopTempRef(); // elem
   }
 
-  String* str = newStringLength(vm, (const char*)buff.data, buff.count);
+  String* str = newStringLength(vm, {(const char*)buff.data, buff.count});
   pkBufferClear(&buff, vm);
   RET(VAR_OBJ(str));
 }
 
 static void initializeBuiltinFN(PKVM* vm, Closure** bfn, const char* name,
-                                int length, int arity, pkNativeFn ptr,
+                                int arity, pkNativeFn ptr,
                                 const char* docstring) {
-  Function* fn = newFunction(vm, name, length, NULL, true, docstring, NULL);
+  Function* fn = newFunction(vm, name, NULL, true, docstring, NULL);
   fn->arity = arity;
   fn->native = ptr;
   vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
@@ -688,7 +688,7 @@ static void initializeBuiltinFN(PKVM* vm, Closure** bfn, const char* name,
 static void initializeBuiltinFunctions(PKVM* vm) {
 #define INITIALIZE_BUILTIN_FN(name, fn, argc)                              \
   initializeBuiltinFN(vm, &vm->builtins_funcs[vm->builtins_count++], name, \
-                      (int)strlen(name), argc, fn, DOCSTRING(fn));
+                      argc, fn, DOCSTRING(fn));
   // General functions.
   INITIALIZE_BUILTIN_FN("help",      coreHelp,    -1);
   INITIALIZE_BUILTIN_FN("dir",       coreDir,      1);
@@ -717,16 +717,16 @@ static void initializeBuiltinFunctions(PKVM* vm) {
 /*****************************************************************************/
 
 // Create a module and add it to the vm's core modules, returns the module.
-Module* newModuleInternal(PKVM* vm, const char* name) {
+Module* newModuleInternal(PKVM* vm, std::string_view name) {
 
-  String* _name = newString(vm, name);
+  String* _name = newStringLength(vm, name);
   vm->vmPushTempRef(static_cast<Object*>(_name)); // _name
 
   // Check if any module with the same name already exists and assert to the
   // hosting application.
   if (vm->vmGetModule(_name) != NULL) {
     ASSERT(false, stringFormat(vm,
-           "A module named '$' already exists", name)->data);
+           "A module named '$' already exists", _name->data)->data);
   }
 
   Module* module = newModule(vm);
@@ -740,17 +740,16 @@ Module* newModuleInternal(PKVM* vm, const char* name) {
 
 // An internal function to add a function to the given [module].
 void moduleAddFunctionInternal(PKVM* vm, Module* module,
-                               const char* name, pkNativeFn fptr,
+                               std::string_view name, pkNativeFn fptr,
                                int arity, const char* docstring) {
 
-  Function* fn = newFunction(vm, name, (int)strlen(name),
-                             module, true, docstring, NULL);
+  Function* fn = newFunction(vm, name, module, true, docstring, NULL);
   fn->native = fptr;
   fn->arity = arity;
 
   vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
   Closure* closure = newClosure(vm, fn);
-  moduleSetGlobal(vm, module, name, (uint32_t)strlen(name), VAR_OBJ(closure));
+  moduleSetGlobal(vm, module, name, VAR_OBJ(closure));
   vm->vmPopTempRef(); // fn.
 }
 
@@ -822,7 +821,7 @@ DEF(stdLangBackTrace,
   }
 
   // bb.count not including the null byte and which is the length.
-  String* bt = newStringLength(vm, (const char*)bb.data, bb.count);
+  String* bt = newStringLength(vm, {(const char*)bb.data, bb.count});
   vm->vmPushTempRef(static_cast<Object*>(bt)); // bt.
   pkBufferClear(&bb, vm);
   vm->vmPopTempRef(); // bt.
@@ -917,7 +916,7 @@ static void _ctorNumber(PKVM* vm) {
 static void _ctorString(PKVM* vm) {
   if (!pkCheckArgcRange(vm, ARGC, 0, 1)) return;
   if (ARGC == 0) {
-    RET(VAR_OBJ(newStringLength(vm, NULL, 0)));
+    RET(VAR_OBJ(newStringLength(vm, std::string_view{})));
     return;
   }
   String* str = varToString(vm, ARG(1), false);
@@ -962,7 +961,7 @@ static void _ctorFiber(PKVM* vm) {
 DEF(_objTypeName,
   "Object.typename() -> String",
   "Returns the type name of the object.") {
-  RET(VAR_OBJ(newString(vm, varTypeName(SELF))));
+  RET(VAR_OBJ(newStringLength(vm, varTypeName(SELF))));
 }
 
 DEF(_objRepr,
@@ -1403,8 +1402,8 @@ static void initializePrimitiveClasses(PKVM* vm) {
   for (int i = 0; i < PK_INSTANCE; i++) {
     Class* super = NULL;
     if (i != 0) super = vm->builtin_classes[PK_OBJECT];
-    const char* name = getPkVarTypeName((PkVarType)i);
-    Class* cls = newClass(vm, name, (int)strlen(name),
+    const char* name = getPkVarTypeName((PkVarType)i).data();
+    Class* cls = newClass(vm, name,
                           super, NULL, NULL, NULL);
     vm->builtin_classes[i] = cls;
     cls->class_of = (PkVarType)i;
@@ -1412,7 +1411,7 @@ static void initializePrimitiveClasses(PKVM* vm) {
 
 #define ADD_CTOR(type, name, ptr, arity_)                    \
   do {                                                       \
-    Function* fn = newFunction(vm, name, (int)strlen(name),  \
+    Function* fn = newFunction(vm, name,                     \
                                NULL, true, NULL, NULL);      \
     fn->native = ptr;                                        \
     fn->arity = arity_;                                      \
@@ -1433,7 +1432,7 @@ static void initializePrimitiveClasses(PKVM* vm) {
 
 #define ADD_METHOD(type, name, ptr, arity_)                       \
   do {                                                            \
-    Function* fn = newFunction(vm, name, (int)strlen(name),       \
+    Function* fn = newFunction(vm, name,                          \
                                NULL, true, DOCSTRING(ptr), NULL); \
     fn->is_method = true;                                         \
     fn->native = ptr;                                             \
@@ -1589,7 +1588,7 @@ Closure* getSuperMethod(PKVM* vm, Var self, String* name) {
   Class* super = getClass(vm, self)->super_class;
   if (super == NULL) {
     VM_SET_ERROR(vm, stringFormat(vm, "'$' object has no parent class.", \
-                 varTypeName(self)));
+                 varTypeName(self).data()));
     return NULL;
   };
 
@@ -1603,11 +1602,11 @@ Closure* getSuperMethod(PKVM* vm, Var self, String* name) {
 
 #define UNSUPPORTED_UNARY_OP(op)                                   \
   VM_SET_ERROR(vm, stringFormat(vm, "Unsupported operand ($) for " \
-               "unary operator " op ".", varTypeName(v)))
+               "unary operator " op ".", varTypeName(v).data()))
 
 #define UNSUPPORTED_BINARY_OP(op)                                    \
   VM_SET_ERROR(vm, stringFormat(vm, "Unsupported operand types for " \
-    "operator '" op "' $ and $", varTypeName(v1), varTypeName(v2)))
+    "operator '" op "' $ and $", varTypeName(v1).data(), varTypeName(v2).data()))
 
 #define RIGHT_OPERAND "Right operand"
 
@@ -1767,14 +1766,14 @@ Var varMultiply(PKVM* vm, Var v1, Var v2, bool inplace) {
       // string so we're following the same rule here.
       if (right < 0) return VAR_OBJ(newString(vm, ""));
 
-      String* str = newStringLength(vm, "", left->length * (uint32_t) right);
+      String* str = _allocateString(vm, left->length * (uint32_t) right);
       char* buff = str->data;
       for (int i = 0; i < (int) right; i++) {
         memcpy(buff, left->data, left->length);
         buff += left->length;
       }
       ASSERT(buff == str->data + str->length, OOPS);
-      str->hash = utilHashString(str->data);
+      str->hash = utilHashString({str->data, str->length});
       return VAR_OBJ(str);
     }
   }
@@ -1888,7 +1887,7 @@ Var varOpRange(PKVM* vm, Var v1, Var v2) {
 bool varContains(PKVM* vm, Var elem, Var container) {
   if (!IS_OBJ(container)) {
     VM_SET_ERROR(vm, stringFormat(vm, "'$' is not iterable.",
-                 varTypeName(container)));
+                 varTypeName(container).data()));
   }
   Object* obj = AS_OBJ(container);
 
@@ -1935,7 +1934,7 @@ bool varContains(PKVM* vm, Var elem, Var container) {
 #undef v2
 
   VM_SET_ERROR(vm, stringFormat(vm, "Argument of type $ is not iterable.",
-               varTypeName(container)));
+               varTypeName(container).data()));
   return VAR_NULL;
 }
 
@@ -1960,7 +1959,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
 
 #define ERR_NO_ATTRIB(vm, on, attrib)                                         \
   VM_SET_ERROR(vm, stringFormat(vm, "'$' object has no attribute named '$'.", \
-                                varTypeName(on), attrib->data))
+                                varTypeName(on).data(), attrib->data))
 
   if (attrib->hash == CHECK_HASH("_class", 0xa2d93eae)) {
     return VAR_OBJ(getClass(vm, on));
@@ -2018,7 +2017,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
       Module* module = (Module*)obj;
 
       // Search in globals.
-      int index = moduleGetGlobalIndex(module, attrib->data, attrib->length);
+      int index = moduleGetGlobalIndex(module, {attrib->data, attrib->length});
       if (index != -1) {
         ASSERT_INDEX((uint32_t)index, module->globals.count);
         return module->globals.data[index];
@@ -2166,7 +2165,7 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
 #define ERR_NO_ATTRIB(vm, on, attrib)                               \
   VM_SET_ERROR(vm, stringFormat(vm,                                 \
                    "'$' object has no mutable attribute named '$'", \
-                   varTypeName(on), attrib->data))
+                   varTypeName(on).data(), attrib->data))
 
   if (!IS_OBJ(on)) {
     ERR_NO_ATTRIB(vm, on, attrib);
@@ -2177,7 +2176,7 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
   switch (obj->type) {
 
     case OBJ_MODULE: {
-      moduleSetGlobal(vm, (Module*) obj, attrib->data, attrib->length, value);
+      moduleSetGlobal(vm, (Module*) obj, {attrib->data, attrib->length}, value);
     } return;
 
     case OBJ_FUNC:
@@ -2292,7 +2291,7 @@ static String* _sliceString(PKVM* vm, String* str, Range* range) {
 
   // TODO: check if length is 1 and return pre allocated character string.
 
-  String* slice = newStringLength(vm, str->data + start, length);
+  String* slice = newStringLength(vm, {str->data + start, (size_t)length});
   if (!reversed) return slice;
 
   for (int32_t i = 0; i < length / 2; i++) {
@@ -2300,7 +2299,7 @@ static String* _sliceString(PKVM* vm, String* str, Range* range) {
     slice->data[i] = slice->data[length - i - 1];
     slice->data[length - i - 1] = tmp;
   }
-  slice->hash = utilHashString(slice->data);
+  slice->hash = utilHashString({slice->data, slice->length});
   return slice;
 }
 
@@ -2329,8 +2328,7 @@ static List* _sliceList(PKVM* vm, List* list, Range* range) {
 Var varGetSubscript(PKVM* vm, Var on, Var key) {
   if (!IS_OBJ(on)) {
     VM_SET_ERROR(vm, stringFormat(vm, "$ type is not subscriptable.",
-                                  varTypeName(on)));
-    return VAR_NULL;
+                                  varTypeName(on).data()));
   }
 
   Object* obj = AS_OBJ(on);
@@ -2348,7 +2346,7 @@ Var varGetSubscript(PKVM* vm, Var on, Var key) {
           return VAR_NULL;
         }
         // FIXME: Add static VM characters instead of allocating here.
-        String* c = newStringLength(vm, str->data + index, 1);
+        String* c = newStringLength(vm, {str->data + index, 1});
         return VAR_OBJ(c);
       }
 
@@ -2388,7 +2386,7 @@ Var varGetSubscript(PKVM* vm, Var on, Var key) {
 
         if (IS_OBJ(key) && !isObjectHashable(AS_OBJ(key)->type)) {
           VM_SET_ERROR(vm, stringFormat(vm, "Unhashable key '$'.",
-                                        varTypeName(key)));
+                                        varTypeName(key).data()));
         } else {
           String* key_repr = varToString(vm, key, true);
           vm->vmPushTempRef(static_cast<Object*>(key_repr)); // key_repr.
@@ -2416,14 +2414,14 @@ Var varGetSubscript(PKVM* vm, Var on, Var key) {
   }
 
   VM_SET_ERROR(vm, stringFormat(vm, "$ type is not subscriptable.",
-               varTypeName(on)));
+               varTypeName(on).data()));
   return VAR_NULL;
 }
 
 void varsetSubscript(PKVM* vm, Var on, Var key, Var value) {
   if (!IS_OBJ(on)) {
     VM_SET_ERROR(vm, stringFormat(vm, "$ type is not subscriptable.",
-                                  varTypeName(on)));
+                                  varTypeName(on).data()));
     return;
   }
 
@@ -2448,7 +2446,7 @@ void varsetSubscript(PKVM* vm, Var on, Var key, Var value) {
     case OBJ_MAP: {
       if (IS_OBJ(key) && !isObjectHashable(AS_OBJ(key)->type)) {
         VM_SET_ERROR(vm, stringFormat(vm, "$ type is not hashable.",
-                                      varTypeName(key)));
+                                      varTypeName(key).data()));
       } else {
         mapSet(vm, (Map*)obj, key, value);
       }
@@ -2480,6 +2478,6 @@ void varsetSubscript(PKVM* vm, Var on, Var key, Var value) {
   }
 
   VM_SET_ERROR(vm, stringFormat(vm, "$ type is not subscriptable.",
-               varTypeName(on)));
+               varTypeName(on).data()));
   return;
 }

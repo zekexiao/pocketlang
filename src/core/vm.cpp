@@ -544,11 +544,11 @@ Var PKVM::vmImportModule(String* from, String* path) {
     // The path of the module contain '/' which was replacement of '.' in the
     // import syntax, this is done so that path resolving can be done easily.
     // However it needs to be '.' for the name of the module.
-    String* _name = newStringLength(vm, path->data, path->length);
+    String* _name = newStringLength(vm, {path->data, path->length});
     for (char* c = _name->data; c < _name->data + _name->length; c++) {
       if (*c == '/') *c = '.';
     }
-    _name->hash = utilHashString(_name->data);
+    _name->hash = utilHashString({_name->data, _name->length});
     vm->vmPushTempRef(static_cast<Object*>(_name)); // _name.
 
     #ifndef PK_NO_DL
@@ -984,7 +984,7 @@ L_vm_main_loop:
 
       if (IS_OBJ(key) && !isObjectHashable(AS_OBJ(key)->type)) {
         RUNTIME_ERROR(stringFormat(vm, "$ type is not hashable.",
-                      varTypeName(key)));
+                      varTypeName(key).data()));
       }
       mapSet(vm, (Map*)AS_OBJ(on), key, value);
 
@@ -1127,7 +1127,7 @@ L_vm_main_loop:
       // inherited from.
       if (base->class_of != PK_INSTANCE && base->class_of != PK_OBJECT) {
         RUNTIME_ERROR(stringFormat(vm, "$ type cannot be inherited.",
-                      getPkVarTypeName(base->class_of)));
+                      getPkVarTypeName(base->class_of).data()));
       }
 
       uint16_t index = READ_SHORT();
@@ -1299,7 +1299,7 @@ L_do_call:
       } else {
         RUNTIME_ERROR(stringFormat(vm, "$ '$'.", "Expected a callable to "
                       "call, instead got",
-                      varTypeName(callable)));
+                      varTypeName(callable).data()));
       }
 
       // If we reached here it's a valid callable.

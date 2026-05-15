@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string_view>
 
 // Returns the smallest power of two that is equal to or greater than [n].
 // Source : https://github.com/wren-lang/wren/blob/main/src/vm/wren_utils.h#L119
@@ -46,8 +47,8 @@ uint32_t utilHashBits(uint64_t hash);
 // Generates a hash code for [num].
 uint32_t utilHashNumber(double num);
 
-// Generate a has code for [string].
-uint32_t utilHashString(const char* string);
+// Generate a hash code for [string].
+uint32_t utilHashString(std::string_view sv);
 
 // Convert the string to number. On success it'll return NULL and set the
 // [num] value. Otherwise it'll return a C literal string containing the error
