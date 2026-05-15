@@ -685,9 +685,11 @@ String* stringReplace(PKVM* vm, String* self,
   // TODO: New length can be overflow if the string is too large
   // we should handle it here.
 
-  uint32_t replaced_length_delta = (new_->length - old->length) * count;
-  uint32_t length = std::max(self->length,
-                             self->length + replaced_length_delta);
+  int64_t replaced_length_delta =
+      ((int64_t) new_->length - old->length) * count;
+  int64_t replaced_length = (int64_t) self->length + replaced_length_delta;
+  uint32_t length = (uint32_t) std::max((int64_t) self->length,
+                                        replaced_length);
 
   String* replaced = self; // Will be allocated if any match found.
   int32_t replacedc = 0; // Replaced count so far.
