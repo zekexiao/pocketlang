@@ -7,13 +7,9 @@
 #ifndef POCKETLANG_H
 #define POCKETLANG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
+#include <string_view>
 
 /*****************************************************************************/
 /* POCKETLANG DEFINES                                                        */
@@ -80,10 +76,6 @@ typedef struct PKVM PKVM;
 // till it's released with pkReleaseHandle().
 typedef struct PkHandle PkHandle;
 
-#ifndef __cplusplus
-typedef enum PkVarType PkVarType;
-typedef enum PkResult PkResult;
-#endif
 typedef struct PkConfiguration PkConfiguration;
 
 // C function pointer which is callable from pocketLang by native module
@@ -523,11 +515,6 @@ PK_PUBLIC bool pkSetAttribute(PKVM* vm, int instance,
 // should be "foo/bar". On failure, it'll set an error and return false.
 PK_PUBLIC bool pkImportModule(PKVM* vm, const char* path, int index);
 
-#ifdef __cplusplus
-} // extern "C"
-
-#include <string_view>
-
 // C++ overloads: accept std::string_view (which implicitly converts from
 // both std::string and const char*) so callers never need .c_str().
 
@@ -541,7 +528,5 @@ inline void pkSetSlotString(PKVM* vm, int index,
   pkSetSlotStringLength(vm, index, value.data(),
                         static_cast<uint32_t>(value.size()));
 }
-
-#endif // __cplusplus
 
 #endif // POCKETLANG_H
