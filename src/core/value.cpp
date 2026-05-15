@@ -264,19 +264,11 @@ void popMarkedObjects(PKVM* vm) {
 }
 
 Var doubleToVar(double value) {
-#if VAR_NAN_TAGGING
   return Var::fromBits(utilDoubleToBits(value));
-#else
-#error TODO:
-#endif // VAR_NAN_TAGGING
 }
 
 double varToDouble(Var value) {
-#if VAR_NAN_TAGGING
   return utilDoubleFromBits(value);
-#else
-  #error TODO:
-#endif // VAR_NAN_TAGGING
 }
 
 String* String::create(PKVM* vm, const char* text, uint32_t length) {
@@ -990,11 +982,7 @@ static uint32_t _hashObject(Object* obj) {
 uint32_t varHashValue(Var v) {
   if (IS_OBJ(v)) return _hashObject(AS_OBJ(v));
 
-#if VAR_NAN_TAGGING
   return utilHashBits(v);
-#else
-  #error TODO:
-#endif
 }
 
 // Find the entry with the [key]. Returns true if found and set [result] to
@@ -1468,12 +1456,8 @@ PkVarType getVarType(Var v) {
 }
 
 bool isValuesSame(Var v1, Var v2) {
-#if VAR_NAN_TAGGING
   // Bit representation of each values are unique so just compare the bits.
   return v1 == v2;
-#else
-  #error TODO:
-#endif
 }
 
 bool isValuesEqual(Var v1, Var v2) {

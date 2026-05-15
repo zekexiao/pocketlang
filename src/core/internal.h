@@ -51,10 +51,6 @@
 // Dump the stack values and the globals.
 #define DUMP_STACK 0
 
-// Nan-Tagging could be disable for debugging/portability purposes. See "var.h"
-// header for more information on Nan-tagging.
-#define VAR_NAN_TAGGING 1
-
 // The maximum size of the pocketlang stack. This value is arbitrary. currently
 // it's 800 KB. Change this to any value upto 2147483647 (signed integer max)
 // if you want.
