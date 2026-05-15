@@ -14,9 +14,9 @@
 
 /**
  * A simple dynamic type system library for small dynamic typed languages using
- * a technique called NaN-tagging (optional). The method is inspired from the
+ * a technique called NaN-tagging. The method is inspired from the
  * wren (https://wren.io/) an awesome language written by Bob Nystrom the
- * author of "Crafting Interpreters" and it's contrbuters.
+ * author of "Crafting Interpreters" and its contributors.
  * Reference:
  *     https://github.com/wren-lang/wren/blob/main/src/vm/wren_value.h
  *     https://leonardschuetz.ch/blog/nan-boxing/
@@ -26,8 +26,6 @@
  * programme inefficient for small types such null, bool, int and float.
  */
 
-// There are 2 main implemenation of Var's internal representation. First one
-// is NaN-tagging, and the second one is union-tagging. (read below for more).
 // Forward declarations for object references used by Var helpers.
 class Object;
 class String;
@@ -43,50 +41,46 @@ class Fiber;
 class Class;
 class Instance;
 
-#if VAR_NAN_TAGGING
-  class Var {
-  public:
-    operator uint64_t() const { return bits_; }
+class Var {
+public:
+  operator uint64_t() const { return bits_; }
 
-    static Var fromBits(uint64_t bits) noexcept {
-      Var v;
-      v.bits_ = bits;
-      return v;
-    }
+  static Var fromBits(uint64_t bits) noexcept {
+    Var v;
+    v.bits_ = bits;
+    return v;
+  }
 
-    static Var null() noexcept;
-    static Var undefined() noexcept;
-    static Var boolean(bool v) noexcept;
-    static Var integer(int32_t v) noexcept;
-    static Var number(double v) noexcept;
-    static Var object(Object* o) noexcept;
+  static Var null() noexcept;
+  static Var undefined() noexcept;
+  static Var boolean(bool v) noexcept;
+  static Var integer(int32_t v) noexcept;
+  static Var number(double v) noexcept;
+  static Var object(Object* o) noexcept;
 
-    bool isNull() const noexcept;
-    bool isBool() const noexcept;
-    bool isInt() const noexcept;
-    bool isNum() const noexcept;
-    bool isObject() const noexcept;
-    bool isConst() const noexcept;
+  bool isNull() const noexcept;
+  bool isBool() const noexcept;
+  bool isInt() const noexcept;
+  bool isNum() const noexcept;
+  bool isObject() const noexcept;
+  bool isConst() const noexcept;
 
-    bool asBool() const noexcept;
-    int32_t asInt() const noexcept;
-    double asNum() const noexcept;
-    Object* asObject() const noexcept;
+  bool asBool() const noexcept;
+  int32_t asInt() const noexcept;
+  double asNum() const noexcept;
+  Object* asObject() const noexcept;
 
-    template<typename T>
-    T* as() const noexcept { return static_cast<T*>(asObject()); }
+  template<typename T>
+  T* as() const noexcept { return static_cast<T*>(asObject()); }
 
-    Var asConst() const noexcept;
-    Var removeConst() const noexcept;
+  Var asConst() const noexcept;
+  Var removeConst() const noexcept;
 
-  private:
-    uint64_t bits_;
-  };
-#else
-  class Var;
-#endif
+private:
+  uint64_t bits_;
+};
 
-// Internal numeric conversion helpers used by Var in nan-tagging mode.
+// Internal numeric conversion helpers used by Var.
 Var doubleToVar(double value);
 double varToDouble(Var value);
 
@@ -141,8 +135,6 @@ double varToDouble(Var value);
  * '-- c is const bit.
  *
  */
-
-#if VAR_NAN_TAGGING
 
 // Masks and payloads.
 #define _MASK_SIGN  ((uint64_t)0x8000000000000000)
@@ -253,40 +245,6 @@ inline Var Var::asConst() const noexcept {
 inline Var Var::removeConst() const noexcept {
   return Var::fromBits(bits_ & ~_MASK_CONST);
 }
-
-#else
-
-// TODO: Union tagging implementation of all the above macros ignore macros
-//       starts with an underscore.
-
-typedef enum {
-  VAR_UNDEFINED, //< Internal type for exceptions.
-  VAR_NULL,      //< Null pointer type.
-  VAR_BOOL,      //< Yin and yang of software.
-  VAR_INT,       //< Only 32bit integers (for consistence with Nan-Tagging).
-  VAR_FLOAT,     //< Floats are stored as (64bit) double.
-
-  VAR_OBJECT,    //< Base type for all \ref var_Object types.
-} VarType;
-
-class Var {
-public:
-  Var() = default;
-  Var(const Var&) = default;
-  Var(Var&&) noexcept = default;
-  Var& operator=(const Var&) = default;
-  Var& operator=(Var&&) noexcept = default;
-
-  VarType type;
-  union {
-    bool _bool;
-    int _int;
-    double _float;
-    Object* _obj;
-  };
-};
-
-#endif // VAR_NAN_TAGGING
 
 // Type definition of pocketlang heap allocated types.
 
