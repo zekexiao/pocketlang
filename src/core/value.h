@@ -258,7 +258,8 @@ using pkClosureBuffer = pkBuffer<Closure*>;
 // Add all the characters to the buffer, byte buffer can also be used as a
 // buffer to write string (like a string stream). Note that this will not
 // add a null byte '\0' at the end.
-void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, std::string_view text);
+void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm,
+                           std::string_view text);
 
 // Add formated string to the byte buffer.
 void pkByteBufferAddStringFmt(pkByteBuffer* self, PKVM* vm,
@@ -743,7 +744,8 @@ String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args);
 #if 0 // Function implementation.
   // Allocate new string using the null-terminated cstring [text].
   static inline String* newString(PKVM* vm, const char* text) {
-    return newStringLength(vm, text ? std::string_view(text) : std::string_view{});
+    return newStringLength(vm,
+                           text ? std::string_view(text) : std::string_view{});
   }
 #else // Macro implementation.
   // Allocate new string using the null-terminated cstring [text].

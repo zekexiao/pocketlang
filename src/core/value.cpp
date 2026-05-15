@@ -26,7 +26,8 @@
 // capacity by the GROW_FACTOR.
 #define GROW_FACTOR 2
 
-void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, std::string_view text) {
+void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm,
+                           std::string_view text) {
   pkBufferReserve(self, vm, (size_t) self->count + text.size());
   for (char c : text) {
     self->data[self->count++] = (uint8_t)c;
@@ -763,7 +764,8 @@ String* stringReplace(PKVM* vm, String* self,
     replaced->length = (int32_t) (d - replaced->data);
     ASSERT(replaced->length < replaced->capacity, OOPS);
     replaced->data[replaced->length] = '\0';
-    replaced->hash = utilHashString({replaced->data, (size_t)replaced->length});
+    replaced->hash = utilHashString(
+      {replaced->data, (size_t)replaced->length});
 
   } else {
     ASSERT(self == replaced, OOPS);

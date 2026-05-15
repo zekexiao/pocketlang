@@ -1606,7 +1606,8 @@ Closure* getSuperMethod(PKVM* vm, Var self, String* name) {
 
 #define UNSUPPORTED_BINARY_OP(op)                                    \
   VM_SET_ERROR(vm, stringFormat(vm, "Unsupported operand types for " \
-    "operator '" op "' $ and $", varTypeName(v1).data(), varTypeName(v2).data()))
+    "operator '" op "' $ and $",                        \
+    varTypeName(v1).data(), varTypeName(v2).data()))
 
 #define RIGHT_OPERAND "Right operand"
 
@@ -2176,7 +2177,8 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
   switch (obj->type) {
 
     case OBJ_MODULE: {
-      moduleSetGlobal(vm, (Module*) obj, {attrib->data, attrib->length}, value);
+      moduleSetGlobal(vm, (Module*) obj,
+                      {attrib->data, attrib->length}, value);
     } return;
 
     case OBJ_FUNC:
