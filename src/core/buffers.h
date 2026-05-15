@@ -56,6 +56,7 @@ void pkBufferReserve(pkBuffer<T>* self, PKVM* vm, size_t size) {
 
 template <typename T, typename U>
 void pkBufferFill(pkBuffer<T>* self, PKVM* vm, U data, int count) {
+  ASSERT(count >= 0, OOPS);
   pkBufferReserve(self, vm, self->count + count);
   for (int i = 0; i < count; i++) {
     self->data[self->count++] = (T) data;
