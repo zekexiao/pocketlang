@@ -26,7 +26,7 @@ typedef void (*pkModuleAddSource_t)(PKVM*, PkHandle*, const char*);
 typedef PkResult (*pkRunString_t)(PKVM*, const char*);
 typedef PkResult (*pkRunFile_t)(PKVM*, const char*);
 typedef PkResult (*pkRunREPL_t)(PKVM*);
-typedef void (*pkSetRuntimeError_t)(PKVM*, const char*);
+typedef void (*pkSetRuntimeErrorLength_t)(PKVM*, const char*, uint32_t);
 typedef void* (*pkGetSelf_t)(const PKVM*);
 typedef int (*pkGetArgc_t)(const PKVM*);
 typedef bool (*pkCheckArgcRange_t)(PKVM*, int, int, int);
@@ -48,7 +48,6 @@ typedef void* (*pkGetSlotNativeInstance_t)(PKVM*, int);
 typedef void (*pkSetSlotNull_t)(PKVM*, int);
 typedef void (*pkSetSlotBool_t)(PKVM*, int, bool);
 typedef void (*pkSetSlotNumber_t)(PKVM*, int, double);
-typedef void (*pkSetSlotString_t)(PKVM*, int, const char*);
 typedef void (*pkSetSlotStringLength_t)(PKVM*, int, const char*, uint32_t);
 typedef void (*pkSetSlotHandle_t)(PKVM*, int, PkHandle*);
 typedef uint32_t (*pkGetSlotHash_t)(PKVM*, int);
@@ -86,7 +85,7 @@ typedef struct {
   pkRunString_t pkRunString_ptr;
   pkRunFile_t pkRunFile_ptr;
   pkRunREPL_t pkRunREPL_ptr;
-  pkSetRuntimeError_t pkSetRuntimeError_ptr;
+  pkSetRuntimeErrorLength_t pkSetRuntimeErrorLength_ptr;
   pkGetSelf_t pkGetSelf_ptr;
   pkGetArgc_t pkGetArgc_ptr;
   pkCheckArgcRange_t pkCheckArgcRange_ptr;
@@ -108,7 +107,6 @@ typedef struct {
   pkSetSlotNull_t pkSetSlotNull_ptr;
   pkSetSlotBool_t pkSetSlotBool_ptr;
   pkSetSlotNumber_t pkSetSlotNumber_ptr;
-  pkSetSlotString_t pkSetSlotString_ptr;
   pkSetSlotStringLength_t pkSetSlotStringLength_ptr;
   pkSetSlotHandle_t pkSetSlotHandle_ptr;
   pkGetSlotHash_t pkGetSlotHash_ptr;
@@ -149,7 +147,7 @@ PK_EXPORT void pkInitApi(PkNativeApi* api) {
   pk_api.pkRunString_ptr = api->pkRunString_ptr;
   pk_api.pkRunFile_ptr = api->pkRunFile_ptr;
   pk_api.pkRunREPL_ptr = api->pkRunREPL_ptr;
-  pk_api.pkSetRuntimeError_ptr = api->pkSetRuntimeError_ptr;
+  pk_api.pkSetRuntimeErrorLength_ptr = api->pkSetRuntimeErrorLength_ptr;
   pk_api.pkGetSelf_ptr = api->pkGetSelf_ptr;
   pk_api.pkGetArgc_ptr = api->pkGetArgc_ptr;
   pk_api.pkCheckArgcRange_ptr = api->pkCheckArgcRange_ptr;
@@ -171,7 +169,6 @@ PK_EXPORT void pkInitApi(PkNativeApi* api) {
   pk_api.pkSetSlotNull_ptr = api->pkSetSlotNull_ptr;
   pk_api.pkSetSlotBool_ptr = api->pkSetSlotBool_ptr;
   pk_api.pkSetSlotNumber_ptr = api->pkSetSlotNumber_ptr;
-  pk_api.pkSetSlotString_ptr = api->pkSetSlotString_ptr;
   pk_api.pkSetSlotStringLength_ptr = api->pkSetSlotStringLength_ptr;
   pk_api.pkSetSlotHandle_ptr = api->pkSetSlotHandle_ptr;
   pk_api.pkGetSlotHash_ptr = api->pkGetSlotHash_ptr;
@@ -263,8 +260,8 @@ PkResult pkRunREPL(PKVM* vm) {
   return pk_api.pkRunREPL_ptr(vm);
 }
 
-void pkSetRuntimeError(PKVM* vm, const char* message) {
-  pk_api.pkSetRuntimeError_ptr(vm, message);
+void pkSetRuntimeErrorLength(PKVM* vm, const char* message, uint32_t length) {
+  pk_api.pkSetRuntimeErrorLength_ptr(vm, message, length);
 }
 
 void* pkGetSelf(const PKVM* vm) {
@@ -349,10 +346,6 @@ void pkSetSlotBool(PKVM* vm, int index, bool value) {
 
 void pkSetSlotNumber(PKVM* vm, int index, double value) {
   pk_api.pkSetSlotNumber_ptr(vm, index, value);
-}
-
-void pkSetSlotString(PKVM* vm, int index, const char* value) {
-  pk_api.pkSetSlotString_ptr(vm, index, value);
 }
 
 void pkSetSlotStringLength(PKVM* vm, int index, const char* value, uint32_t length) {

@@ -567,11 +567,6 @@ PkResult pkRunREPL(PKVM* vm) {
 /* RUNTIME                                                                   */
 /*****************************************************************************/
 
-void pkSetRuntimeError(PKVM* vm, const char* message) {
-  CHECK_FIBER_EXISTS(vm);
-  VM_SET_ERROR(vm, newString(vm, message));
-}
-
 void pkSetRuntimeErrorLength(PKVM* vm, const char* message,
                               uint32_t length) {
   CHECK_FIBER_EXISTS(vm);
@@ -802,12 +797,6 @@ void pkSetSlotNumber(PKVM* vm, int index, double value) {
   CHECK_FIBER_EXISTS(vm);
   VALIDATE_SLOT_INDEX(index);
   SET_SLOT(index, VAR_NUM(value));
-}
-
-void pkSetSlotString(PKVM* vm, int index, const char* value) {
-  CHECK_FIBER_EXISTS(vm);
-  VALIDATE_SLOT_INDEX(index);
-  SET_SLOT(index, VAR_OBJ(newString(vm, value)));
 }
 
 void pkSetSlotStringLength(PKVM* vm, int index,

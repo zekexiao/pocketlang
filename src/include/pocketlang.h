@@ -330,7 +330,6 @@ PK_PUBLIC PkResult pkRunREPL(PKVM* vm);
 /*****************************************************************************/
 
 // Set a runtime error to VM.
-PK_PUBLIC void pkSetRuntimeError(PKVM* vm, const char* message);
 
 // Set a runtime error to VM with explicit [length] (message may have
 // embedded nulls or need not be null-terminated).
@@ -428,7 +427,6 @@ PK_PUBLIC void pkSetSlotBool(PKVM* vm, int index, bool value);
 PK_PUBLIC void pkSetSlotNumber(PKVM* vm, int index, double value);
 
 // Create a new String copying the [value] and set it to [index] slot.
-PK_PUBLIC void pkSetSlotString(PKVM* vm, int index, const char* value);
 
 // Create a new String copying the [value] and set it to [index] slot. Unlike
 // the above function it'll copy only the spicified length.
