@@ -32,7 +32,6 @@ class Compiler;
 class CompileOptions {
 public:
   CompileOptions() = default;
-  ~CompileOptions() = default;
   CompileOptions(const CompileOptions&) = default;
   CompileOptions(CompileOptions&&) noexcept = default;
   CompileOptions& operator=(const CompileOptions&) = default;
