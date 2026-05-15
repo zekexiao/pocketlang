@@ -22,6 +22,7 @@ public:
 };
 
 static inline uint32_t pkBufferNextCapacity(size_t size) {
+  ASSERT(size <= UINT32_MAX, OOPS);
   uint32_t capacity = MIN_CAPACITY;
   while (capacity < size) capacity *= 2;
   return capacity;

@@ -688,6 +688,7 @@ String* stringReplace(PKVM* vm, String* self,
   int64_t replaced_length_delta =
       ((int64_t) new_->length - old->length) * count;
   int64_t replaced_length = (int64_t) self->length + replaced_length_delta;
+  ASSERT(replaced_length <= UINT32_MAX, OOPS);
   uint32_t length = (uint32_t) std::max((int64_t) self->length,
                                         replaced_length);
 
