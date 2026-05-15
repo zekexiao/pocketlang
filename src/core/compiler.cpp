@@ -2653,7 +2653,7 @@ int Compiler::compileClass() {
   Class* cls = newClass(_vm, name, name_len,
                         _vm->builtin_classes[PK_OBJECT], this->module,
                         NULL, &cls_index);
-  _vm->vmPushTempRef(&cls->_super); // cls.
+  _vm->vmPushTempRef(static_cast<Object*>(cls)); // cls.
   this->parser.parsing_class = true;
 
   checkMaxConstantsReached(cls_index);
@@ -3516,7 +3516,7 @@ PkResult compile(PKVM* vm, Module* module, const char* source,
 void compilerMarkObjects(PKVM* vm, Compiler* compiler) {
 
   // Mark the module which is currently being compiled.
-  markObject(vm, &compiler->module->_super);
+  markObject(vm, static_cast<Object*>(compiler->module));
 
   // Mark the string literals (they haven't added to the module's literal
   // buffer yet).

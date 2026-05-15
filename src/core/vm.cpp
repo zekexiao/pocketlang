@@ -94,7 +94,7 @@ void PKVM::vmCollectGarbage() {
 
   // Mark builtin functions.
   for (int i = 0; i < vm->builtins_count; i++) {
-    markObject(vm, &vm->builtins_funcs[i]->_super);
+    markObject(vm, static_cast<Object*>(vm->builtins_funcs[i]));
   }
 
   // Mark primitive types' classes.
@@ -103,12 +103,12 @@ void PKVM::vmCollectGarbage() {
     // building the primitives and the class could be NULL.
     if (vm->builtin_classes[i] == NULL) continue;
 
-    markObject(vm, &vm->builtin_classes[i]->_super);
+    markObject(vm, static_cast<Object*>(vm->builtin_classes[i]));
   }
 
   // Mark the modules and search path.
-  markObject(vm, &vm->modules->_super);
-  markObject(vm, &vm->search_paths->_super);
+  markObject(vm, static_cast<Object*>(vm->modules));
+  markObject(vm, static_cast<Object*>(vm->search_paths));
 
   // Mark temp references.
   for (int i = 0; i < vm->temp_reference_count; i++) {
@@ -126,7 +126,7 @@ void PKVM::vmCollectGarbage() {
   }
 
   if (vm->fiber != NULL) {
-    markObject(vm, &vm->fiber->_super);
+    markObject(vm, static_cast<Object*>(vm->fiber));
   }
 
   // Reset VM's bytes_allocated value and count it again so that we don't
@@ -305,7 +305,7 @@ PkResult PKVM::vmCallMethod(Var self, Closure* fn,
   Fiber* fiber = newFiber(vm, fn);
   fiber->self = self;
   fiber->native = vm->fiber;
-  vm->vmPushTempRef(&fiber->_super); // fiber.
+  vm->vmPushTempRef(static_cast<Object*>(fiber)); // fiber.
   bool success = vm->vmPrepareFiber(fiber, argc, argv);
 
   if (!success) {
@@ -316,7 +316,7 @@ PkResult PKVM::vmCallMethod(Var self, Closure* fn,
   PkResult result;
 
   Fiber* last = vm->fiber;
-  if (last != NULL) vm->vmPushTempRef(&last->_super); // last.
+  if (last != NULL) vm->vmPushTempRef(static_cast<Object*>(last)); // last.
   {
     if (fiber->closure->fn->is_native) {
 
@@ -440,7 +440,7 @@ static Module* _importScript(PKVM* vm, String* resolved, String* name) {
   module->path = resolved;
   module->name = name;
 
-  vm->vmPushTempRef(&module->_super); // module.
+  vm->vmPushTempRef(static_cast<Object*>(module)); // module.
   {
     initializeModule(vm, module, false);
     PkResult result = compile(vm, module, source, NULL);
@@ -531,7 +531,7 @@ Var PKVM::vmImportModule(String* from, String* path) {
 
   Module* module = NULL;
 
-  vm->vmPushTempRef(&resolved->_super); // resolved.
+  vm->vmPushTempRef(static_cast<Object*>(resolved)); // resolved.
   {
     // FIXME:
     // stringReplace() function expect 2 strings old, and new to replace but
@@ -547,7 +547,7 @@ Var PKVM::vmImportModule(String* from, String* path) {
       if (*c == '/') *c = '.';
     }
     _name->hash = utilHashString(_name->data);
-    vm->vmPushTempRef(&_name->_super); // _name.
+    vm->vmPushTempRef(static_cast<Object*>(_name)); // _name.
 
     #ifndef PK_NO_DL
     if (isdl) module = _importDL(vm, resolved, _name);
@@ -1090,7 +1090,7 @@ L_vm_main_loop:
       Function* fn = (Function*)AS_OBJ(module->constants.data[index]);
 
       Closure* closure = newClosure(vm, fn);
-      vm->vmPushTempRef(&closure->_super); // closure.
+      vm->vmPushTempRef(static_cast<Object*>(closure)); // closure.
 
       // Capture the vaupes.
       for (int i = 0; i < fn->upvalue_count; i++) {

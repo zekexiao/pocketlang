@@ -88,14 +88,14 @@ void markVarBuffer(PKVM* vm, pkVarBuffer* self) {
 void markStringBuffer(PKVM* vm, pkStringBuffer* self) {
   if (self == NULL) return;
   for (uint32_t i = 0; i < self->count; i++) {
-    markObject(vm, &self->data[i]->_super);
+    markObject(vm, static_cast<Object*>(self->data[i]));
   }
 }
 
 void markClosureBuffer(PKVM* vm, pkClosureBuffer* self) {
   if (self == NULL) return;
   for (uint32_t i = 0; i < self->count; i++) {
-    markObject(vm, &self->data[i]->_super);
+    markObject(vm, static_cast<Object*>(self->data[i]));
   }
 }
 
@@ -135,8 +135,8 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
       Module* module = (Module*)obj;
       vm->bytes_allocated += sizeof(Module);
 
-      markObject(vm, &module->path->_super);
-      markObject(vm, &module->name->_super);
+      markObject(vm, static_cast<Object*>(module->path));
+      markObject(vm, static_cast<Object*>(module->name));
 
       markVarBuffer(vm, &module->globals);
       vm->bytes_allocated += sizeof(Var) * module->globals.capacity;
@@ -147,7 +147,7 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
       markVarBuffer(vm, &module->constants);
       vm->bytes_allocated += sizeof(Var) * module->constants.capacity;
 
-      markObject(vm, &module->body->_super);
+      markObject(vm, static_cast<Object*>(module->body));
     } break;
 
     case OBJ_FUNC:
@@ -155,7 +155,7 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
       Function* func = (Function*)obj;
       vm->bytes_allocated += sizeof(Function);
 
-      markObject(vm, &func->owner->_super);
+      markObject(vm, static_cast<Object*>(func->owner));
 
       // If a garbage collection is triggered when allocating a name string
       // for this function, it's [fn] property will be NULL.
@@ -171,9 +171,9 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
     case OBJ_CLOSURE:
     {
       Closure* closure = (Closure*)obj;
-      markObject(vm, &closure->fn->_super);
+      markObject(vm, static_cast<Object*>(closure->fn));
       for (int i = 0; i < closure->fn->upvalue_count; i++) {
-        markObject(vm, &(closure->upvalues[i]->_super));
+        markObject(vm, static_cast<Object*>(closure->upvalues[i]));
       }
 
       vm->bytes_allocated += sizeof(Closure);
@@ -184,7 +184,7 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
     case OBJ_METHOD_BIND:
     {
       MethodBind* mb = (MethodBind*) obj;
-      markObject(vm, &mb->method->_super);
+      markObject(vm, static_cast<Object*>(mb->method));
       markValue(vm, mb->instance);
 
       vm->bytes_allocated += sizeof(MethodBind);
@@ -208,7 +208,7 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
       Fiber* fiber = (Fiber*)obj;
       vm->bytes_allocated += sizeof(Fiber);
 
-      markObject(vm, &fiber->closure->_super);
+      markObject(vm, static_cast<Object*>(fiber->closure));
 
       // Mark the stack.
       for (Var* local = fiber->stack; local < fiber->sp; local++) {
@@ -218,14 +218,15 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
 
       // Mark call frames.
       for (int i = 0; i < fiber->frame_count; i++) {
-        markObject(vm, (Object*)&fiber->frames[i].closure->_super);
+        markObject(vm, const_cast<Object*>(
+          static_cast<const Object*>(fiber->frames[i].closure)));
         markValue(vm, fiber->frames[i].self);
       }
       vm->bytes_allocated += sizeof(CallFrame) * fiber->frame_capacity;
 
-      markObject(vm, &fiber->caller->_super);
-      markObject(vm, &fiber->native->_super);
-      markObject(vm, &fiber->error->_super);
+      markObject(vm, static_cast<Object*>(fiber->caller));
+      markObject(vm, static_cast<Object*>(fiber->native));
+      markObject(vm, static_cast<Object*>(fiber->error));
 
       markValue(vm, fiber->self);
 
@@ -235,10 +236,10 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
     {
       Class* cls = (Class*)obj;
       vm->bytes_allocated += sizeof(Class);
-      markObject(vm, &cls->owner->_super);
-      markObject(vm, &cls->ctor->_super);
-      markObject(vm, &cls->name->_super);
-      markObject(vm, &cls->static_attribs->_super);
+      markObject(vm, static_cast<Object*>(cls->owner));
+      markObject(vm, static_cast<Object*>(cls->ctor));
+      markObject(vm, static_cast<Object*>(cls->name));
+      markObject(vm, static_cast<Object*>(cls->static_attribs));
 
       markClosureBuffer(vm, &cls->methods);
       vm->bytes_allocated += sizeof(Closure) * cls->methods.capacity;
@@ -248,8 +249,8 @@ static void popMarkedObjectsInternal(Object* obj, PKVM* vm) {
     case OBJ_INST:
     {
       Instance* inst = (Instance*)obj;
-      markObject(vm, &inst->attribs->_super);
-      markObject(vm, &inst->cls->_super);
+      markObject(vm, static_cast<Object*>(inst->attribs));
+      markObject(vm, static_cast<Object*>(inst->cls));
       vm->bytes_allocated += sizeof(Instance);
     } break;
   }
@@ -264,7 +265,7 @@ void popMarkedObjects(PKVM* vm) {
 
 Var doubleToVar(double value) {
 #if VAR_NAN_TAGGING
-  return utilDoubleToBits(value);
+  return Var::fromBits(utilDoubleToBits(value));
 #else
 #error TODO:
 #endif // VAR_NAN_TAGGING
@@ -278,9 +279,47 @@ double varToDouble(Var value) {
 #endif // VAR_NAN_TAGGING
 }
 
+String* String::create(PKVM* vm, const char* text, uint32_t length) {
+  return newStringLength(vm, text, length);
+}
+
+String* String::create(PKVM* vm, const char* text) {
+  return newStringLength(vm, text, (!(text)) ? 0 : (uint32_t)strlen(text));
+}
+
+String* String::lower(PKVM* vm) { return stringLower(vm, this); }
+String* String::upper(PKVM* vm) { return stringUpper(vm, this); }
+String* String::strip(PKVM* vm) { return stringStrip(vm, this); }
+String* String::replace(PKVM* vm, String* old, String* new_, int32_t count) {
+  return stringReplace(vm, this, old, new_, count);
+}
+List* String::split(PKVM* vm, String* sep) {
+  return stringSplit(vm, this, sep);
+}
+String* String::join(PKVM* vm, String* other) {
+  return stringJoin(vm, this, other);
+}
+
+List* List::create(PKVM* vm, uint32_t size) { return newList(vm, size); }
+void List::append(PKVM* vm, Var value) { pkBufferWrite(&elements, vm, value); }
+void List::insert(PKVM* vm, uint32_t index, Var value) {
+  listInsert(vm, this, index, value);
+}
+Var List::removeAt(PKVM* vm, uint32_t index) {
+  return listRemoveAt(vm, this, index);
+}
+void List::clear(PKVM* vm) { listClear(vm, this); }
+List* List::add(PKVM* vm, List* other) { return listAdd(vm, this, other); }
+
+Map* Map::create(PKVM* vm) { return newMap(vm); }
+Var Map::get(Var key) { return mapGet(this, key); }
+void Map::set(PKVM* vm, Var key, Var value) { mapSet(vm, this, key, value); }
+void Map::clear(PKVM* vm) { mapClear(vm, this); }
+Var Map::removeKey(PKVM* vm, Var key) { return mapRemoveKey(vm, this, key); }
+
 static String* _allocateString(PKVM* vm, size_t length) {
   String* string = ALLOCATE_DYNAMIC(vm, String, length + 1, char);
-  varInitObject(&string->_super, vm, OBJ_STRING);
+  varInitObject(static_cast<Object*>(string), vm, OBJ_STRING);
   string->length = (uint32_t)length;
   string->data[length] = '\0';
   string->capacity = (uint32_t)(length + 1);
@@ -314,8 +353,8 @@ String* newStringVaArgs(PKVM* vm, const char* fmt, va_list args) {
 
 List* newList(PKVM* vm, uint32_t size) {
   List* list = ALLOCATE(vm, List);
-  vm->vmPushTempRef(&list->_super); // list.
-  varInitObject(&list->_super, vm, OBJ_LIST);
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
+  varInitObject(static_cast<Object*>(list), vm, OBJ_LIST);
   pkBufferInit(&list->elements);
   if (size > 0) {
     pkBufferFill(&list->elements, vm, VAR_NULL, size);
@@ -327,7 +366,7 @@ List* newList(PKVM* vm, uint32_t size) {
 
 Map* newMap(PKVM* vm) {
   Map* map = ALLOCATE(vm, Map);
-  varInitObject(&map->_super, vm, OBJ_MAP);
+  varInitObject(static_cast<Object*>(map), vm, OBJ_MAP);
   map->capacity = 0;
   map->count = 0;
   map->entries = NULL;
@@ -336,7 +375,7 @@ Map* newMap(PKVM* vm) {
 
 Range* newRange(PKVM* vm, double from, double to) {
   Range* range = ALLOCATE(vm, Range);
-  varInitObject(&range->_super, vm, OBJ_RANGE);
+  varInitObject(static_cast<Object*>(range), vm, OBJ_RANGE);
   range->from = from;
   range->to = to;
   return range;
@@ -345,7 +384,7 @@ Range* newRange(PKVM* vm, double from, double to) {
 Module* newModule(PKVM* vm) {
   Module* module = ALLOCATE(vm, Module);
   memset(module, 0, sizeof(Module));
-  varInitObject(&module->_super, vm, OBJ_MODULE);
+  varInitObject(static_cast<Object*>(module), vm, OBJ_MODULE);
 
   pkBufferInit(&module->globals);
   pkBufferInit(&module->global_names);
@@ -361,9 +400,9 @@ Function* newFunction(PKVM* vm, const char* name, int length,
 
   Function* func = ALLOCATE(vm, Function);
   memset(func, 0, sizeof(Function));
-  varInitObject(&func->_super, vm, OBJ_FUNC);
+  varInitObject(static_cast<Object*>(func), vm, OBJ_FUNC);
 
-  vm->vmPushTempRef(&func->_super); // func
+  vm->vmPushTempRef(static_cast<Object*>(func)); // func
 
   func->owner = owner;
   func->is_native = is_native;
@@ -403,7 +442,7 @@ Function* newFunction(PKVM* vm, const char* name, int length,
 Closure* newClosure(PKVM* vm, Function* fn) {
   Closure* closure = ALLOCATE_DYNAMIC(vm, Closure,
                                       fn->upvalue_count, Upvalue*);
-  varInitObject(&closure->_super, vm, OBJ_CLOSURE);
+  varInitObject(static_cast<Object*>(closure), vm, OBJ_CLOSURE);
 
   closure->fn = fn;
   memset(closure->upvalues, 0, sizeof(Upvalue*) * fn->upvalue_count);
@@ -413,7 +452,7 @@ Closure* newClosure(PKVM* vm, Function* fn) {
 
 MethodBind* newMethodBind(PKVM* vm, Closure* method) {
   MethodBind* mb = ALLOCATE(vm, MethodBind);
-  varInitObject(&mb->_super, vm, OBJ_METHOD_BIND);
+  varInitObject(static_cast<Object*>(mb), vm, OBJ_METHOD_BIND);
 
   mb->method = method;
   mb->instance = VAR_UNDEFINED;
@@ -423,7 +462,7 @@ MethodBind* newMethodBind(PKVM* vm, Closure* method) {
 
 Upvalue* newUpvalue(PKVM* vm, Var* value) {
   Upvalue* upvalue = ALLOCATE(vm, Upvalue);
-  varInitObject(&upvalue->_super, vm, OBJ_UPVALUE);
+  varInitObject(static_cast<Object*>(upvalue), vm, OBJ_UPVALUE);
 
   upvalue->ptr = value;
   upvalue->closed = VAR_NULL;
@@ -441,9 +480,9 @@ Fiber* newFiber(PKVM* vm, Closure* closure) {
   // so we need to memset here.
   memset(fiber, 0, sizeof(Fiber));
 
-  varInitObject(&fiber->_super, vm, OBJ_FIBER);
+  varInitObject(static_cast<Object*>(fiber), vm, OBJ_FIBER);
 
-  vm->vmPushTempRef(&fiber->_super); // fiber.
+  vm->vmPushTempRef(static_cast<Object*>(fiber)); // fiber.
 
   fiber->state = FIBER_NEW;
   fiber->closure = closure;
@@ -508,9 +547,9 @@ Class* newClass(PKVM* vm, const char* name, int length,
   // and it's property [cls->name] is un initialized, which cause a crash.
   memset(cls, 0, sizeof(Class));
 
-  varInitObject(&cls->_super, vm, OBJ_CLASS);
+  varInitObject(static_cast<Object*>(cls), vm, OBJ_CLASS);
 
-  vm->vmPushTempRef(&cls->_super); // class.
+  vm->vmPushTempRef(static_cast<Object*>(cls)); // class.
 
   pkBufferInit(&cls->methods);
   cls->static_attribs = newMap(vm);
@@ -540,9 +579,9 @@ Instance* newInstance(PKVM* vm, Class* cls) {
 
   Instance* inst = ALLOCATE(vm, Instance);
   memset(inst, 0, sizeof(Instance));
-  varInitObject(&inst->_super, vm, OBJ_INST);
+  varInitObject(static_cast<Object*>(inst), vm, OBJ_INST);
 
-  vm->vmPushTempRef(&inst->_super); // inst.
+  vm->vmPushTempRef(static_cast<Object*>(inst)); // inst.
 
   inst->cls = cls;
   if (cls->new_fn != NULL) {
@@ -561,7 +600,7 @@ List* rangeAsList(PKVM* vm, Range* self) {
 
   if (self->from < self->to) {
     List* list = newList(vm, (uint32_t)(self->to - self->from));
-    vm->vmPushTempRef(&list->_super); // list.
+    vm->vmPushTempRef(static_cast<Object*>(list)); // list.
     for (double i = self->from; i < self->to; i++) {
       pkBufferWrite(&list->elements, vm, VAR_NUM(i));
     }
@@ -750,7 +789,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
   const char* s = self->data; // Current position in self.
 
   List* list = newList(vm, 0);
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   do {
     const char* match = strstr(s, sep->data);
     if (match == NULL) {
@@ -764,7 +803,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
       } else {
         String* tail = newStringLength(vm, s,
           (uint32_t)(self->length - (s - self->data)));
-        vm->vmPushTempRef(&tail->_super); // tail.
+        vm->vmPushTempRef(static_cast<Object*>(tail)); // tail.
         listAppend(vm, list, VAR_OBJ(tail));
         vm->vmPopTempRef(); // tail.
       }
@@ -773,7 +812,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
     }
 
     String* split = newStringLength(vm, s, (uint32_t)(match - s));
-    vm->vmPushTempRef(&split->_super); // split.
+    vm->vmPushTempRef(static_cast<Object*>(split)); // split.
     listAppend(vm, list, VAR_OBJ(split));
     vm->vmPopTempRef(); // split.
 
@@ -912,7 +951,7 @@ List* listAdd(PKVM* vm, List* l1, List* l2) {
   uint32_t size = l1->elements.count + l2->elements.count;
   List* list = newList(vm, size);
 
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   pkBufferConcat(&list->elements, vm, &l1->elements);
   pkBufferConcat(&list->elements, vm, &l2->elements);
   vm->vmPopTempRef(); // list.
@@ -1253,7 +1292,7 @@ String* moduleAddString(Module* module, PKVM* vm, const char* name,
   // If we reach here the name doesn't exists in the buffer, so add it and
   // return the index.
   String* new_name = newStringLength(vm, name, length);
-  vm->vmPushTempRef(&new_name->_super); // new_name
+  vm->vmPushTempRef(static_cast<Object*>(new_name)); // new_name
   pkBufferWrite(&module->constants, vm, VAR_OBJ(new_name));
   vm->vmPopTempRef(); // new_name
   if (index) *index = module->constants.count - 1;
@@ -1313,7 +1352,7 @@ void moduleAddMain(PKVM* vm, Module* module) {
                                   module, false, NULL/*TODO*/, NULL);
   body_fn->arity = 0;
 
-  vm->vmPushTempRef(&body_fn->_super); // body_fn.
+  vm->vmPushTempRef(static_cast<Object*>(body_fn)); // body_fn.
   module->body = newClosure(vm, body_fn);
   vm->vmPopTempRef(); // body_fn.
 

@@ -28,11 +28,67 @@
 
 // There are 2 main implemenation of Var's internal representation. First one
 // is NaN-tagging, and the second one is union-tagging. (read below for more).
+// Forward declarations for object references used by Var helpers.
+class Object;
+class String;
+class List;
+class Map;
+class Range;
+class Module;
+class Function;
+class Closure;
+class MethodBind;
+class Upvalue;
+class Fiber;
+class Class;
+class Instance;
+
 #if VAR_NAN_TAGGING
-  typedef uint64_t Var;
+  class Var {
+  public:
+    operator uint64_t() const { return bits_; }
+
+    static Var fromBits(uint64_t bits) noexcept {
+      Var v;
+      v.bits_ = bits;
+      return v;
+    }
+
+    static Var null() noexcept;
+    static Var undefined() noexcept;
+    static Var boolean(bool v) noexcept;
+    static Var integer(int32_t v) noexcept;
+    static Var number(double v) noexcept;
+    static Var object(Object* o) noexcept;
+
+    bool isNull() const noexcept;
+    bool isBool() const noexcept;
+    bool isInt() const noexcept;
+    bool isNum() const noexcept;
+    bool isObject() const noexcept;
+    bool isConst() const noexcept;
+
+    bool asBool() const noexcept;
+    int32_t asInt() const noexcept;
+    double asNum() const noexcept;
+    Object* asObject() const noexcept;
+
+    template<typename T>
+    T* as() const noexcept { return static_cast<T*>(asObject()); }
+
+    Var asConst() const noexcept;
+    Var removeConst() const noexcept;
+
+  private:
+    uint64_t bits_;
+  };
 #else
   class Var;
 #endif
+
+// Internal numeric conversion helpers used by Var in nan-tagging mode.
+Var doubleToVar(double value);
+double varToDouble(Var value);
 
 /**
  * The IEEE 754 double precision float bit representation.
@@ -101,33 +157,34 @@
 #define _PAYLOAD_OBJECT  ((uint64_t)0x0000ffffffffffff)
 
 // Primitive types.
-#define VAR_NULL      (_MASK_QNAN | (uint64_t)0x0000000000000000)
-#define VAR_UNDEFINED (_MASK_QNAN | (uint64_t)0x0001000000000000)
-#define VAR_VOID      (_MASK_QNAN | (uint64_t)0x0001000000000001)
-#define VAR_FALSE     (_MASK_QNAN | (uint64_t)0x0001000000000002)
-#define VAR_TRUE      (_MASK_QNAN | (uint64_t)0x0001000000000003)
+#define VAR_NULL      Var::fromBits(_MASK_QNAN | (uint64_t)0x0000000000000000)
+#define VAR_UNDEFINED Var::fromBits(_MASK_QNAN | (uint64_t)0x0001000000000000)
+#define VAR_VOID      Var::fromBits(_MASK_QNAN | (uint64_t)0x0001000000000001)
+#define VAR_FALSE     Var::fromBits(_MASK_QNAN | (uint64_t)0x0001000000000002)
+#define VAR_TRUE      Var::fromBits(_MASK_QNAN | (uint64_t)0x0001000000000003)
 
 // Encode types.
 #define VAR_BOOL(value) ((value)? VAR_TRUE : VAR_FALSE)
-#define VAR_INT(value)  (_MASK_INTEGER | (uint32_t)(int32_t)(value))
+#define VAR_INT(value)  \
+  (Var::fromBits(_MASK_INTEGER | (uint32_t)(int32_t)(value)))
 #define VAR_NUM(value)  (doubleToVar(value))
 #define VAR_OBJ(value) /* [value] is an instance of Object */ \
-  ((Var)(_MASK_OBJECT | (uint64_t)(uintptr_t)(&value->_super)))
+  (Var::object(static_cast<Object*>(value)))
 
 // Const casting.
-#define ADD_CONST(value)    ((value) | _MASK_CONST)
-#define REMOVE_CONST(value) ((value) & ~_MASK_CONST)
+#define ADD_CONST(value)    ((value).asConst())
+#define REMOVE_CONST(value) ((value).removeConst())
 
 // Check types.
-#define IS_CONST(value) ((value & _MASK_CONST) == _MASK_CONST)
-#define IS_NULL(value)  ((value) == VAR_NULL)
+#define IS_CONST(value) ((value).isConst())
+#define IS_NULL(value)  ((value).isNull())
 #define IS_UNDEF(value) ((value) == VAR_UNDEFINED)
 #define IS_FALSE(value) ((value) == VAR_FALSE)
 #define IS_TRUE(value)  ((value) == VAR_TRUE)
-#define IS_BOOL(value)  (IS_TRUE(value) || IS_FALSE(value))
-#define IS_INT(value)   ((value & _MASK_INTEGER) == _MASK_INTEGER)
-#define IS_NUM(value)   ((value & _MASK_QNAN) != _MASK_QNAN)
-#define IS_OBJ(value)   ((value & _MASK_OBJECT) == _MASK_OBJECT)
+#define IS_BOOL(value)  ((value).isBool())
+#define IS_INT(value)   ((value).isInt())
+#define IS_NUM(value)   ((value).isNum())
+#define IS_OBJ(value)   ((value).isObject())
 
 // Evaluate to true if the var is an object and type of [obj_type].
 #define IS_OBJ_TYPE(var, obj_type) \
@@ -145,16 +202,57 @@
   (memcmp((const void*)(str)->data, (const void*)(cstr), len) == 0))
 
 // Decode types.
-#define AS_BOOL(value) ((value) == VAR_TRUE)
-#define AS_INT(value)  ((int32_t)((value) & _PAYLOAD_INTEGER))
-#define AS_NUM(value)  (varToDouble(value))
-#define AS_OBJ(value)  ((Object*)(value & _PAYLOAD_OBJECT))
+#define AS_BOOL(value) ((value).asBool())
+#define AS_INT(value)  ((value).asInt())
+#define AS_NUM(value)  ((value).asNum())
+#define AS_OBJ(value)  ((value).asObject())
 
 #define AS_STRING(value)  ((String*)AS_OBJ(value))
 #define AS_CSTRING(value) (AS_STRING(value)->data)
 #define AS_ARRAY(value)   ((List*)AS_OBJ(value))
 #define AS_MAP(value)     ((Map*)AS_OBJ(value))
 #define AS_RANGE(value)   ((Range*)AS_OBJ(value))
+
+inline Var Var::null() noexcept { return VAR_NULL; }
+inline Var Var::undefined() noexcept { return VAR_UNDEFINED; }
+inline Var Var::boolean(bool v) noexcept { return VAR_BOOL(v); }
+inline Var Var::integer(int32_t v) noexcept { return VAR_INT(v); }
+inline Var Var::number(double v) noexcept { return VAR_NUM(v); }
+inline Var Var::object(Object* o) noexcept {
+  return Var::fromBits(_MASK_OBJECT | (uint64_t)(uintptr_t)o);
+}
+
+inline bool Var::isNull() const noexcept { return bits_ == VAR_NULL; }
+inline bool Var::isBool() const noexcept {
+  return bits_ == VAR_TRUE || bits_ == VAR_FALSE;
+}
+inline bool Var::isInt() const noexcept {
+  return (bits_ & _MASK_INTEGER) == _MASK_INTEGER;
+}
+inline bool Var::isNum() const noexcept {
+  return (bits_ & _MASK_QNAN) != _MASK_QNAN;
+}
+inline bool Var::isObject() const noexcept {
+  return (bits_ & _MASK_OBJECT) == _MASK_OBJECT;
+}
+inline bool Var::isConst() const noexcept {
+  return (bits_ & _MASK_CONST) == _MASK_CONST;
+}
+
+inline bool Var::asBool() const noexcept { return bits_ == VAR_TRUE; }
+inline int32_t Var::asInt() const noexcept {
+  return (int32_t)(bits_ & _PAYLOAD_INTEGER);
+}
+inline double Var::asNum() const noexcept { return varToDouble(*this); }
+inline Object* Var::asObject() const noexcept {
+  return (Object*)(bits_ & _PAYLOAD_OBJECT);
+}
+inline Var Var::asConst() const noexcept {
+  return Var::fromBits(bits_ | _MASK_CONST);
+}
+inline Var Var::removeConst() const noexcept {
+  return Var::fromBits(bits_ & ~_MASK_CONST);
+}
 
 #else
 
@@ -191,19 +289,6 @@ public:
 #endif // VAR_NAN_TAGGING
 
 // Type definition of pocketlang heap allocated types.
-class Object;
-class String;
-class List;
-class Map;
-class Range;
-class Module;
-class Function;
-class Closure;
-class MethodBind;
-class Upvalue;
-class Fiber;
-class Class;
-class Instance;
 
 // Declaration of buffer objects of different types.
 using pkUintBuffer = pkBuffer<uint32_t>;
@@ -251,14 +336,22 @@ public:
   Object* next;     //< Next object in the heap allocated link list.
 };
 
-class String {
+class String : public Object {
 public:
   String(const String&) = delete;
   String& operator=(const String&) = delete;
   String(String&&) = delete;
   String& operator=(String&&) = delete;
 
-  Object _super;
+  static String* create(PKVM* vm, const char* text, uint32_t length);
+  static String* create(PKVM* vm, const char* text);
+
+  String* lower(PKVM* vm);
+  String* upper(PKVM* vm);
+  String* strip(PKVM* vm);
+  String* replace(PKVM* vm, String* old, String* new_, int32_t count);
+  List* split(PKVM* vm, String* sep);
+  String* join(PKVM* vm, String* other);
 
   uint32_t hash;      //< 32 bit hash value of the string.
   uint32_t length;    //< Length of the string in \ref data.
@@ -266,14 +359,20 @@ public:
   char data[DYNAMIC_TAIL_ARRAY];
 };
 
-class List {
+class List : public Object {
 public:
   List(const List&) = delete;
   List& operator=(const List&) = delete;
   List(List&&) = delete;
   List& operator=(List&&) = delete;
 
-  Object _super;
+  static List* create(PKVM* vm, uint32_t size);
+
+  void append(PKVM* vm, Var value);
+  void insert(PKVM* vm, uint32_t index, Var value);
+  Var removeAt(PKVM* vm, uint32_t index);
+  void clear(PKVM* vm);
+  List* add(PKVM* vm, List* other);
 
   pkVarBuffer elements; //< Elements of the array.
 };
@@ -294,28 +393,31 @@ public:
   Var value; //< The entry's value.
 };
 
-class Map {
+class Map : public Object {
 public:
   Map(const Map&) = delete;
   Map& operator=(const Map&) = delete;
   Map(Map&&) = delete;
   Map& operator=(Map&&) = delete;
 
-  Object _super;
+  static Map* create(PKVM* vm);
+
+  Var get(Var key);
+  void set(PKVM* vm, Var key, Var value);
+  void clear(PKVM* vm);
+  Var removeKey(PKVM* vm, Var key);
 
   uint32_t capacity; //< Allocated entry's count.
   uint32_t count;    //< Number of entries in the map.
   MapEntry* entries; //< Pointer to the contiguous array.
 };
 
-class Range {
+class Range : public Object {
 public:
   Range(const Range&) = delete;
   Range& operator=(const Range&) = delete;
   Range(Range&&) = delete;
   Range& operator=(Range&&) = delete;
-
-  Object _super;
 
   double from; //< Beggining of the range inclusive.
   double to;   //< End of the range exclusive.
@@ -324,14 +426,12 @@ public:
 // Module in pocketlang is a collection of globals, functions, classes and top
 // level statements, they can be imported in other modules generally a
 // pocketlang script will compiled to a module.
-class Module {
+class Module : public Object {
 public:
   Module(const Module&) = delete;
   Module& operator=(const Module&) = delete;
   Module(Module&&) = delete;
   Module& operator=(Module&&) = delete;
-
-  Object _super;
 
   // The [name] is the module name defined with either 'module' statement
   // in the script or the provided name for native modules when creating.
@@ -385,14 +485,12 @@ public:
   int stack_size;        //< Maximum size of stack required.
 };
 
-class Function {
+class Function : public Object {
 public:
   Function(const Function&) = delete;
   Function& operator=(const Function&) = delete;
   Function(Function&&) = delete;
   Function& operator=(Function&&) = delete;
-
-  Object _super;
 
   // The module that owns this function. Since built in functions doesn't
   // belongs to a module it'll be NULL for them.
@@ -461,14 +559,12 @@ public:
 // ran out of it's scope / popped from stack, the upvalue will make it's own
 // copy of that variable to make sure that a closure referenceing the variable
 // via this upvalue has still access to the variable.
-class Closure {
+class Closure : public Object {
 public:
   Closure(const Closure&) = delete;
   Closure& operator=(const Closure&) = delete;
   Closure(Closure&&) = delete;
   Closure& operator=(Closure&&) = delete;
-
-  Object _super;
 
   Function* fn;
   Upvalue* upvalues[DYNAMIC_TAIL_ARRAY];
@@ -478,14 +574,12 @@ public:
 // instace which will be used as the self when the underlying method invoked.
 // If the vallue [instance] is VAR_UNDEFINED it's unbound and cannot be
 // called.
-class MethodBind {
+class MethodBind : public Object {
 public:
   MethodBind(const MethodBind&) = delete;
   MethodBind& operator=(const MethodBind&) = delete;
   MethodBind(MethodBind&&) = delete;
   MethodBind& operator=(MethodBind&&) = delete;
-
-  Object _super;
 
   Closure* method;
   Var instance;
@@ -511,14 +605,12 @@ public:
 //       '-------'
 //         stack
 //
-class Upvalue {
+class Upvalue : public Object {
 public:
   Upvalue(const Upvalue&) = delete;
   Upvalue& operator=(const Upvalue&) = delete;
   Upvalue(Upvalue&&) = delete;
   Upvalue& operator=(Upvalue&&) = delete;
-
-  Object _super;
 
   // The pointer which points to the non-local variable, once the variable is
   // out of scope the [ptr] will points to the below value [closed].
@@ -555,14 +647,12 @@ typedef enum {
   FIBER_DONE,    //< Fiber finished and cannot be resumed.
 } FiberState;
 
-class Fiber {
+class Fiber : public Object {
 public:
   Fiber(const Fiber&) = delete;
   Fiber& operator=(const Fiber&) = delete;
   Fiber(Fiber&&) = delete;
   Fiber& operator=(Fiber&&) = delete;
-
-  Object _super;
 
   FiberState state;
 
@@ -610,14 +700,12 @@ public:
   String* error;
 };
 
-class Class {
+class Class : public Object {
 public:
   Class(const Class&) = delete;
   Class& operator=(const Class&) = delete;
   Class(Class&&) = delete;
   Class& operator=(Class&&) = delete;
-
-  Object _super;
 
   // The base class of this class.
   Class* super_class;
@@ -663,14 +751,12 @@ public:
   pkVarBuffer fields; //< Var buffer of the instance.
 };
 
-class Instance {
+class Instance : public Object {
 public:
   Instance(const Instance&) = delete;
   Instance& operator=(const Instance&) = delete;
   Instance(Instance&&) = delete;
   Instance& operator=(Instance&&) = delete;
-
-  Object _super;
 
   Class* cls; //< Class of the instance.
 

@@ -150,7 +150,7 @@ void initializeModule(PKVM* vm, Module* module, bool is_main) {
     // allocations everytime here.
     name = newString(vm, "@main");
     module->name = name;
-    vm->vmPushTempRef(&name->_super); // _main.
+    vm->vmPushTempRef(static_cast<Object*>(name)); // _main.
   } else {
     ASSERT(module->name != NULL, OOPS);
     name = module->name;
@@ -185,14 +185,14 @@ String* varToString(PKVM* vm, Var self, bool repr) {
     bool has_method = false;
     if (!repr) {
       String* name = newString(vm, LITS__str); // TODO: static vm string?.
-      vm->vmPushTempRef(&name->_super); // name.
+      vm->vmPushTempRef(static_cast<Object*>(name)); // name.
       has_method = hasMethod(vm, self, name, &closure);
       vm->vmPopTempRef(); // name.
     }
 
     if (!has_method) {
       String* name = newString(vm, LITS__repr); // TODO: static vm string?.
-      vm->vmPushTempRef(&name->_super); // name.
+      vm->vmPushTempRef(static_cast<Object*>(name)); // name.
       has_method = hasMethod(vm, self, name, &closure);
       vm->vmPopTempRef(); // name.
     }
@@ -226,7 +226,7 @@ static inline bool _callUnaryOpMethod(PKVM* vm, Var self,
                                       const char* method_name, Var* ret) {
   Closure* closure = NULL;
   String* name = newString(vm, method_name);
-  vm->vmPushTempRef(&name->_super); // name.
+  vm->vmPushTempRef(static_cast<Object*>(name)); // name.
   bool has_method = hasMethod(vm, self, name, &closure);
   vm->vmPopTempRef(); // name.
 
@@ -243,7 +243,7 @@ static inline bool _callBinaryOpMethod(PKVM* vm, Var self, Var other,
                                       const char* method_name, Var* ret) {
   Closure* closure = NULL;
   String* name = newString(vm, method_name);
-  vm->vmPushTempRef(&name->_super); // name.
+  vm->vmPushTempRef(static_cast<Object*>(name)); // name.
   bool has_method = hasMethod(vm, self, name, &closure);
   vm->vmPopTempRef(); // name.
 
@@ -356,7 +356,7 @@ DEF(coreDir,
     case PK_CLOSURE:
     case PK_FIBER: {
       List* list = newList(vm, 8);
-      vm->vmPushTempRef(&list->_super); // list.
+      vm->vmPushTempRef(static_cast<Object*>(list)); // list.
       _collectMethods(vm, list, getClass(vm, v));
       vm->vmPopTempRef(); // list.
       RET(VAR_OBJ(list));
@@ -365,7 +365,7 @@ DEF(coreDir,
     case PK_MODULE: {
       Module* m = (Module*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vm->vmPushTempRef(&list->_super); // list.
+      vm->vmPushTempRef(static_cast<Object*>(list)); // list.
       for (uint32_t i = 0; i < m->globals.count; i++) {
         Var name = m->constants.data[m->global_names.data[i]];
         ASSERT(IS_OBJ_TYPE(name, OBJ_STRING), OOPS);
@@ -378,7 +378,7 @@ DEF(coreDir,
     case PK_CLASS: {
       Class* cls = (Class*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vm->vmPushTempRef(&list->_super); // list.
+      vm->vmPushTempRef(static_cast<Object*>(list)); // list.
       _collectMethods(vm, list, cls);
       // TODO: if we add static variables to classes it should be
       // added here as well.
@@ -389,7 +389,7 @@ DEF(coreDir,
     case PK_INSTANCE: {
       Instance* inst = (Instance*) AS_OBJ(v);
       List* list = newList(vm, 8);
-      vm->vmPushTempRef(&list->_super); // list.
+      vm->vmPushTempRef(static_cast<Object*>(list)); // list.
       for (uint32_t i = 0; i < inst->attribs->capacity; i++) {
         Var key = (inst->attribs->entries + i)->key;
         if (!IS_UNDEF(key)) {
@@ -428,7 +428,7 @@ DEF(coreAssert,
         msg = (String*)AS_OBJ(ARG(2));
       }
 
-      vm->vmPushTempRef(&msg->_super); // msg.
+      vm->vmPushTempRef(static_cast<Object*>(msg)); // msg.
       VM_SET_ERROR(vm, stringFormat(vm, "Assertion failed: '@'.", msg));
       vm->vmPopTempRef(); // msg.
     } else {
@@ -669,7 +669,7 @@ DEF(coreListJoin,
   for (uint32_t i = 0; i < list->elements.count; i++) {
     String* str = varToString(vm, list->elements.data[i], false);
     if (str == NULL) RET(VAR_NULL);
-    vm->vmPushTempRef(&str->_super); // elem
+    vm->vmPushTempRef(static_cast<Object*>(str)); // elem
     pkByteBufferAddString(&buff, vm, str->data, str->length);
     vm->vmPopTempRef(); // elem
   }
@@ -685,7 +685,7 @@ static void initializeBuiltinFN(PKVM* vm, Closure** bfn, const char* name,
   Function* fn = newFunction(vm, name, length, NULL, true, docstring, NULL);
   fn->arity = arity;
   fn->native = ptr;
-  vm->vmPushTempRef(&fn->_super); // fn.
+  vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
   *bfn = newClosure(vm, fn);
   vm->vmPopTempRef(); // fn.
 }
@@ -725,7 +725,7 @@ static void initializeBuiltinFunctions(PKVM* vm) {
 Module* newModuleInternal(PKVM* vm, const char* name) {
 
   String* _name = newString(vm, name);
-  vm->vmPushTempRef(&_name->_super); // _name
+  vm->vmPushTempRef(static_cast<Object*>(_name)); // _name
 
   // Check if any module with the same name already exists and assert to the
   // hosting application.
@@ -753,7 +753,7 @@ void moduleAddFunctionInternal(PKVM* vm, Module* module,
   fn->native = fptr;
   fn->arity = arity;
 
-  vm->vmPushTempRef(&fn->_super); // fn.
+  vm->vmPushTempRef(static_cast<Object*>(fn)); // fn.
   Closure* closure = newClosure(vm, fn);
   moduleSetGlobal(vm, module, name, (uint32_t)strlen(name), VAR_OBJ(closure));
   vm->vmPopTempRef(); // fn.
@@ -828,7 +828,7 @@ DEF(stdLangBackTrace,
 
   // bb.count not including the null byte and which is the length.
   String* bt = newStringLength(vm, (const char*)bb.data, bb.count);
-  vm->vmPushTempRef(&bt->_super); // bt.
+  vm->vmPushTempRef(static_cast<Object*>(bt)); // bt.
   pkBufferClear(&bb, vm);
   vm->vmPopTempRef(); // bt.
 
@@ -840,7 +840,7 @@ DEF(stdLangModules,
   "Returns the list of all registered modules.") {
 
   List* list = newList(vm, 8);
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   for (uint32_t i = 0; i < vm->modules->capacity; i++) {
     if (!IS_UNDEF(vm->modules->entries[i].key)) {
       Var entry = vm->modules->entries[i].value;
@@ -872,7 +872,7 @@ static void initializeCoreModules(PKVM* vm) {
 
 #define NEW_MODULE(module, name_string)                \
   Module* module = newModuleInternal(vm, name_string); \
-  vm->vmPushTempRef(&module->_super); /* module */     \
+  vm->vmPushTempRef(static_cast<Object*>(module)); /* module */     \
   vm->vmRegisterModule(module, module->name);          \
   vm->vmPopTempRef() /* module */
 
@@ -932,7 +932,7 @@ static void _ctorString(PKVM* vm) {
 
 static void _ctorList(PKVM* vm) {
   List* list = newList(vm, ARGC);
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   for (int i = 0; i < ARGC; i++) {
     listAppend(vm, list, ARG(i + 1));
   }
@@ -1300,7 +1300,7 @@ DEF(_methodBindBind,
 
   // We can only bind the method if the instance has that method.
   String* method_name = newString(vm, self->method->fn->name);
-  vm->vmPushTempRef(&method_name->_super); // method_name.
+  vm->vmPushTempRef(static_cast<Object*>(method_name)); // method_name.
 
   Var instance = ARG(1);
 
@@ -1325,13 +1325,13 @@ DEF(_classMethods,
   Class* self = (Class*) AS_OBJ(SELF);
 
   List* list = newList(vm, self->methods.count);
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   for (int i = 0; i < (int) self->methods.count; i++) {
     Closure* method = self->methods.data[i];
     ASSERT(method->fn->name, OOPS);
     if (method->fn->name[0] == SPECIAL_NAME_CHAR) continue;
     MethodBind* mb = newMethodBind(vm, method);
-    vm->vmPushTempRef(&mb->_super); // mb.
+    vm->vmPushTempRef(static_cast<Object*>(mb)); // mb.
     listAppend(vm, list, VAR_OBJ(mb));
     vm->vmPopTempRef(); // mb.
   }
@@ -1349,7 +1349,7 @@ DEF(_moduleGlobals,
   Module* self = (Module*) AS_OBJ(SELF);
 
   List* list = newList(vm, self->globals.count);
-  vm->vmPushTempRef(&list->_super); // list.
+  vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   for (int i = 0; i < (int) self->globals.count; i++) {
     if (moduleGetStringAt(self,
       self->global_names.data[i])->data[0] == SPECIAL_NAME_CHAR) {
@@ -1421,7 +1421,7 @@ static void initializePrimitiveClasses(PKVM* vm) {
                                NULL, true, NULL, NULL);      \
     fn->native = ptr;                                        \
     fn->arity = arity_;                                      \
-    vm->vmPushTempRef(&fn->_super); /* fn. */                \
+    vm->vmPushTempRef(static_cast<Object*>(fn)); /* fn. */                \
     vm->builtin_classes[type]->ctor = newClosure(vm, fn);    \
     vm->vmPopTempRef(); /* fn. */                              \
   } while (false)
@@ -1443,7 +1443,7 @@ static void initializePrimitiveClasses(PKVM* vm) {
     fn->is_method = true;                                         \
     fn->native = ptr;                                             \
     fn->arity = arity_;                                           \
-    vm->vmPushTempRef(&fn->_super); /* fn. */                     \
+    vm->vmPushTempRef(static_cast<Object*>(fn)); /* fn. */           \
     pkBufferWrite(&vm->builtin_classes[type]->methods,     \
                          vm, newClosure(vm, fn));                 \
     vm->vmPopTempRef(); /* fn. */                                   \
@@ -2135,7 +2135,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
         Closure* getter;
         // TODO: static vm string?
         String* getter_name = newString(vm, GETTER_NAME);
-        vm->vmPushTempRef(&getter_name->_super); // getter_name.
+        vm->vmPushTempRef(static_cast<Object*>(getter_name)); // getter_name.
         bool has_getter = hasMethod(vm, on, getter_name, &getter);
         vm->vmPopTempRef(); // getter_name.
 
@@ -2203,7 +2203,7 @@ void varSetAttrib(PKVM* vm, Var on, String* attrib, Var value) {
         Closure* setter;
         // TODO: static vm string?
         String* setter_name = newString(vm, SETTER_NAME);
-        vm->vmPushTempRef(&setter_name->_super); // setter_name.
+        vm->vmPushTempRef(static_cast<Object*>(setter_name)); // setter_name.
         bool has_setter = hasMethod(vm, VAR_OBJ(inst), setter_name, &setter);
         vm->vmPopTempRef(); // setter_name.
 
@@ -2320,7 +2320,7 @@ static List* _sliceList(PKVM* vm, List* list, Range* range) {
   }
 
   List* slice = newList(vm, length);
-  vm->vmPushTempRef(&slice->_super); // slice.
+  vm->vmPushTempRef(static_cast<Object*>(slice)); // slice.
 
   for (int32_t i = 0; i < length; i++) {
     int32_t ind = (reversed) ? start + length - 1 - i : start + i;
@@ -2396,7 +2396,7 @@ Var varGetSubscript(PKVM* vm, Var on, Var key) {
                                         varTypeName(key)));
         } else {
           String* key_repr = varToString(vm, key, true);
-          vm->vmPushTempRef(&key_repr->_super); // key_repr.
+          vm->vmPushTempRef(static_cast<Object*>(key_repr)); // key_repr.
           VM_SET_ERROR(vm, stringFormat(vm, "Key '@' not exists", key_repr));
           vm->vmPopTempRef(); // key_repr.
         }
@@ -2468,7 +2468,7 @@ void varsetSubscript(PKVM* vm, Var on, Var key, Var value) {
 
       Closure* closure = NULL;
       String* name = newString(vm, "[]=");
-      vm->vmPushTempRef(&name->_super); // name.
+      vm->vmPushTempRef(static_cast<Object*>(name)); // name.
       bool has_method = hasMethod(vm, on, name, &closure);
       vm->vmPopTempRef(); // name.
 

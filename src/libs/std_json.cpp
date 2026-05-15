@@ -41,7 +41,7 @@ static Var _cJsonToPocket(PKVM* vm, cJSON* item) {
 
     case cJSON_Array: {
       List* list = newList(vm, 8);
-      vm->vmPushTempRef(&list->_super); // list.
+      vm->vmPushTempRef(static_cast<Object*>(list)); // list.
 
       cJSON* elem = item->child;
       while (elem != NULL) {
@@ -57,11 +57,11 @@ static Var _cJsonToPocket(PKVM* vm, cJSON* item) {
 
     case cJSON_Object: {
       Map* map = newMap(vm);
-      vm->vmPushTempRef(&map->_super); // map.
+      vm->vmPushTempRef(static_cast<Object*>(map)); // map.
       cJSON* elem = item->child;
       while (elem != NULL) {
         String* key = newString(vm, elem->string);
-        vm->vmPushTempRef(&key->_super); // key.
+        vm->vmPushTempRef(static_cast<Object*>(key)); // key.
         {
           Var value = _cJsonToPocket(vm, elem);
           if (IS_OBJ(value)) vm->vmPushTempRef(AS_OBJ(value)); // value.
