@@ -608,7 +608,7 @@ String* stringLower(PKVM* vm, String* self) {
     if (isupper(*c)) {
 
       // It contain upper case letters, allocate new lower case string .
-      String* lower = newStringLength(vm, self->data, self->length);
+      String* lower = newStringLength(vm, {self->data, self->length});
 
       // Start where the first upper case letter found.
       char* _c = lower->data + (c - self->data);
@@ -629,7 +629,7 @@ String* stringUpper(PKVM* vm, String* self) {
   for (const char* c = self->data; *c != '\0'; c++, index++) {
     if (islower(*c)) {
       // It contain lower case letters, allocate new upper case string .
-      String* upper = newStringLength(vm, self->data, self->length);
+      String* upper = newStringLength(vm, {self->data, self->length});
 
       // Start where the first lower case letter found.
       char* _c = upper->data + (c - self->data);
