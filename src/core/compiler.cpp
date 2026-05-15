@@ -2318,7 +2318,8 @@ void Compiler::exprSuper() {
   ASSERT(this->func->ptr != NULL, OOPS);
 
   int index = 0;
-  const char* name = this->func->ptr->name.data();
+  std::string_view fn_name = this->func->ptr->name;
+  const char* name = fn_name.data();
   int name_length = -1;
 
   if (!match(TK_LPARAN)) { // super.method().
@@ -2331,7 +2332,7 @@ void Compiler::exprSuper() {
     consume(TK_LPARAN, "Expected symbol '('.");
 
   } else { // super().
-    name_length = (int)strlen(name);
+    name_length = (int)fn_name.size();
   }
 
   if (this->parser.has_syntax_error) return;

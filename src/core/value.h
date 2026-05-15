@@ -482,7 +482,7 @@ public:
   int upvalue_count;
 
   // Docstring of the function. Could be either a C string literal or a string
-  // entry in it's owner module's constant pool. Empty string_view means no
+  // entry in its owner module's constant pool. Empty string_view means no
   // docstring.
   std::string_view docstring;
 
@@ -675,7 +675,7 @@ public:
   String* name;
 
   // Docstring of the class. Could be either a C string literal or a string
-  // entry in it's owner module's constant pool. Empty string_view means no
+  // entry in its owner module's constant pool. Empty string_view means no
   // docstring.
   std::string_view docstring;
 
