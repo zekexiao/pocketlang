@@ -482,9 +482,8 @@ DEF(coreHex,
     RET(VAR_NULL);
   }
 
-  // TODO: previous sprintf limits only to 8 character hex value, we need to
-  // do it
-  // ourself for a maximum of 16 character long (see bin() for reference).
+  // TODO: support 64-bit values with up to 16 hex digits (see bin() for
+  // reference).
   uint32_t _x = (uint32_t)((value < 0) ? -value : value);
   const std::string hex = std::format("{}0x{:x}", (value < 0) ? "-" : "", _x);
 
