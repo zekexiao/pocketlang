@@ -7,10 +7,6 @@
 #ifndef POCKETLANG_H
 #define POCKETLANG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -516,9 +512,5 @@ PK_PUBLIC bool pkSetAttribute(PKVM* vm, int instance,
 // sepearation should be '/'. Example: to import module "foo.bar" the [path]
 // should be "foo/bar". On failure, it'll set an error and return false.
 PK_PUBLIC bool pkImportModule(PKVM* vm, const char* path, int index);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
 
 #endif // POCKETLANG_H

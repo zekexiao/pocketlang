@@ -33,11 +33,6 @@
 #ifndef ARGPARSE_H
 #define ARGPARSE_H
 
-/* For c++ compatibility */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 struct argparse;
@@ -147,10 +142,6 @@ void argparse_describe(struct argparse *self, const char *description,
                        const char *epilog);
 int argparse_parse(struct argparse *self, int argc, const char **argv);
 void argparse_usage(struct argparse *self);
-
-#ifdef __cplusplus
-}
-#endif
 
 #if defined(_ARGPARSE_IMPL)
 /**
