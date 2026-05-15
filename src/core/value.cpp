@@ -816,15 +816,15 @@ List* stringSplit(PKVM* vm, String* self, String* sep) {
   return list;
 }
 
-String* stringFormat(PKVM* vm, const char* fmt, ...) {
+String* stringFormat(PKVM* vm, std::string_view fmt, ...) {
   va_list arg_list;
 
   // Calculate the total length of the resulting string. This is required to
   // determine the final string size to allocate.
   va_start(arg_list, fmt);
   size_t total_length = 0;
-  for (const char* c = fmt; *c != '\0'; c++) {
-    switch (*c) {
+  for (char c : fmt) {
+    switch (c) {
       case '$':
         total_length += strlen(va_arg(arg_list, const char*));
         break;
@@ -843,8 +843,8 @@ String* stringFormat(PKVM* vm, const char* fmt, ...) {
   String* result = _allocateString(vm, total_length);
   va_start(arg_list, fmt);
   char* buff = result->data;
-  for (const char* c = fmt; *c != '\0'; c++) {
-    switch (*c) {
+  for (char c : fmt) {
+    switch (c) {
       case '$':
       {
         const char* string = va_arg(arg_list, const char*);
@@ -862,7 +862,7 @@ String* stringFormat(PKVM* vm, const char* fmt, ...) {
 
       default:
       {
-        *buff++ = *c;
+        *buff++ = c;
       } break;
     }
   }

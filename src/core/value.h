@@ -841,7 +841,7 @@ List* stringSplit(PKVM* vm, String* self, String* sep);
 // usage and it has 2 formated characters (just like wren does).
 // $ - a C string
 // @ - a String object
-String* stringFormat(PKVM* vm, const char* fmt, ...);
+String* stringFormat(PKVM* vm, std::string_view fmt, ...);
 
 // Create a new string by joining the 2 given string and return the result.
 // Which would be faster than using "@@" format.
