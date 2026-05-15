@@ -340,6 +340,12 @@ PK_PUBLIC PkResult pkRunREPL(PKVM* vm);
 // Set a runtime error to VM.
 PK_PUBLIC void pkSetRuntimeError(PKVM* vm, const char* message);
 
+// Set a runtime error to VM with explicit [length] (message may have
+// embedded nulls or need not be null-terminated).
+PK_PUBLIC void pkSetRuntimeErrorLength(PKVM* vm,
+                                       const char* message,
+                                       uint32_t length);
+
 // Set a runtime error with C formated string.
 PK_PUBLIC void pkSetRuntimeErrorFmt(PKVM* vm, const char* fmt, ...);
 
@@ -519,6 +525,23 @@ PK_PUBLIC bool pkImportModule(PKVM* vm, const char* path, int index);
 
 #ifdef __cplusplus
 } // extern "C"
-#endif
+
+#include <string_view>
+
+// C++ overloads: accept std::string_view (which implicitly converts from
+// both std::string and const char*) so callers never need .c_str().
+
+inline void pkSetRuntimeError(PKVM* vm, std::string_view message) {
+  pkSetRuntimeErrorLength(vm, message.data(),
+                          static_cast<uint32_t>(message.size()));
+}
+
+inline void pkSetSlotString(PKVM* vm, int index,
+                            std::string_view value) {
+  pkSetSlotStringLength(vm, index, value.data(),
+                        static_cast<uint32_t>(value.size()));
+}
+
+#endif // __cplusplus
 
 #endif // POCKETLANG_H

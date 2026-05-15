@@ -572,6 +572,12 @@ void pkSetRuntimeError(PKVM* vm, const char* message) {
   VM_SET_ERROR(vm, newString(vm, message));
 }
 
+void pkSetRuntimeErrorLength(PKVM* vm, const char* message,
+                              uint32_t length) {
+  CHECK_FIBER_EXISTS(vm);
+  VM_SET_ERROR(vm, newStringLength(vm, {message, length}));
+}
+
 void pkSetRuntimeErrorFmt(PKVM* vm, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
