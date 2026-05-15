@@ -28,27 +28,27 @@ int PocketApp::run(int argc, const char** argv) const {
   CliParser parser;
   parser.parse(argc, argv, options);
 
-  if (options.help) {
+  if (options.help()) {
     parser.printUsage();
     return 0;
   }
 
-  if (options.version) {
+  if (options.version()) {
     std::fprintf(stdout, "pocketlang %s\n", PK_VERSION_STRING);
     return 0;
   }
 
   PocketVm vm;
-  if (options.cmd != nullptr) {
-    return vm.runString(options.cmd);
+  if (options.command() != nullptr) {
+    return vm.runString(options.command());
   }
 
-  if (options.argc == 0) {
-    if (!options.quiet) {
+  if (options.argc() == 0) {
+    if (!options.quiet()) {
       std::printf("%s", CLI_NOTICE);
     }
     return vm.runRepl();
   }
 
-  return vm.runFile(options.argv[0]);
+  return vm.runFile(options.argv()[0]);
 }
