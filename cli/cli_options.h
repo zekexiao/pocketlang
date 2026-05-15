@@ -30,7 +30,7 @@ class CliOptions {
   void setQuiet(bool quiet) noexcept { quiet_ = quiet; }
   void setVersion(bool version) noexcept { version_ = version; }
   void setArgc(int argc) noexcept { argc_ = argc; }
-  void setArgv(const char** argv) noexcept { argv_ = argv; }
+  void setArgv(const char* const* argv) noexcept { argv_ = argv; }
 
  private:
   const char* command_ = nullptr;
