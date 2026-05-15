@@ -167,6 +167,7 @@ bool osGetExeFilePath(char* buff, int size) {
 #elif defined(_PKOS_LINUX_)
     const std::string proc_path = std::format("/proc/{}/exe", getpid());
     int len = readlink(proc_path.c_str(), buff, size);
+    if (len < 0 || len >= size) return false;
     buff[len] = '\0';
     return true;
 
