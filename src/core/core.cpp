@@ -664,7 +664,7 @@ DEF(coreListJoin,
   if (!validateArgList(vm, 1, &list)) return;
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
 
   for (uint32_t i = 0; i < list->elements.count; i++) {
     String* str = varToString(vm, list->elements.data[i], false);
@@ -675,7 +675,7 @@ DEF(coreListJoin,
   }
 
   String* str = newStringLength(vm, (const char*)buff.data, buff.count);
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
   RET(VAR_OBJ(str));
 }
 
@@ -796,7 +796,7 @@ DEF(stdLangBackTrace,
   // refactor the functionality in a way that it's possible to re use them.
 
   pkByteBuffer bb;
-  pkByteBufferInit(&bb);
+  pkBufferInit(&bb);
 
   Fiber* fiber = vm->fiber;
   ASSERT(fiber != NULL, OOPS);
@@ -829,7 +829,7 @@ DEF(stdLangBackTrace,
   // bb.count not including the null byte and which is the length.
   String* bt = newStringLength(vm, (const char*)bb.data, bb.count);
   vm->vmPushTempRef(&bt->_super); // bt.
-  pkByteBufferClear(&bb, vm);
+  pkBufferClear(&bb, vm);
   vm->vmPopTempRef(); // bt.
 
   RET(VAR_OBJ(bt));
@@ -1444,7 +1444,7 @@ static void initializePrimitiveClasses(PKVM* vm) {
     fn->native = ptr;                                             \
     fn->arity = arity_;                                           \
     vm->vmPushTempRef(&fn->_super); /* fn. */                     \
-    pkClosureBufferWrite(&vm->builtin_classes[type]->methods,     \
+    pkBufferWrite(&vm->builtin_classes[type]->methods,     \
                          vm, newClosure(vm, fn));                 \
     vm->vmPopTempRef(); /* fn. */                                   \
   } while (false)
@@ -1713,7 +1713,7 @@ Var varAdd(PKVM* vm, Var v1, Var v2, bool inplace) {
         Object* o2 = AS_OBJ(v2);
         if (o2->type == OBJ_LIST) {
           if (inplace) {
-            pkVarBufferConcat(&((List*)o1)->elements, vm,
+            pkBufferConcat(&((List*)o1)->elements, vm,
                               &((List*)o2)->elements);
             return v1;
           } else {

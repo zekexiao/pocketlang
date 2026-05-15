@@ -12,6 +12,10 @@
 #include "debug.h"
 #endif
 
+void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size) {
+  return vm->vmRealloc(memory, old_size, new_size);
+}
+
 PkHandle* PKVM::vmNewHandle(Var value) {
   PKVM* vm = this;
   PkHandle* handle = (PkHandle*)ALLOCATE(vm, PkHandle);
@@ -963,7 +967,7 @@ L_vm_main_loop:
       Var elem = PEEK(-1); // Don't pop yet, we need the reference for gc.
       Var list = PEEK(-2);
       ASSERT(IS_OBJ_TYPE(list, OBJ_LIST), OOPS);
-      pkVarBufferWrite(&((List*)AS_OBJ(list))->elements, vm, elem);
+      pkBufferWrite(&((List*)AS_OBJ(list))->elements, vm, elem);
       DROP(); // elem
       DISPATCH();
     }
@@ -1147,7 +1151,7 @@ L_vm_main_loop:
         cls->ctor = method;
       }
 
-      pkClosureBufferWrite(&cls->methods, vm, method);
+      pkBufferWrite(&cls->methods, vm, method);
 
       DROP();
       DISPATCH();

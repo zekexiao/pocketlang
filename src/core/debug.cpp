@@ -32,10 +32,10 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
   if (writefn == NULL) return;
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
   {
     // Initial size set to 512. Will grow if needed.
-    pkByteBufferReserve(&buff, vm, 512);
+    pkBufferReserve(&buff, vm, 512);
 
     buff.count = 0;
     writefn(vm, path);
@@ -53,7 +53,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
     va_end(args_copy);
 
     ASSERT(size >= 0, "vnsprintf() failed.");
-    pkByteBufferReserve(&buff, vm, size);
+    pkBufferReserve(&buff, vm, size);
     vsnprintf((char*)buff.data, size, fmt, args);
     writefn(vm, (char*)buff.data);
     writefn(vm, "\n");
@@ -101,7 +101,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         buff.count = 0;
         pkByteBufferAddString(&buff, vm, line_start,
                               (uint32_t)(c - line_start));
-        pkByteBufferWrite(&buff, vm, '\0');
+        pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
         writefn(vm, "\n");
 
@@ -113,14 +113,14 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
         buff.count = 0;
         pkByteBufferAddString(&buff, vm, line_start,
                               (uint32_t)(at - line_start));
-        pkByteBufferWrite(&buff, vm, '\0');
+        pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
 
         // Print error token - if the error token is a new line ignore it.
         if (*at != '\n') {
           buff.count = 0;
           pkByteBufferAddString(&buff, vm, at, length);
-          pkByteBufferWrite(&buff, vm, '\0');
+          pkBufferWrite(&buff, vm, '\0');
           _printRed(vm, (char*)buff.data);
 
           // Run to the line end. Note that tk.length is not reliable and
@@ -140,7 +140,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
             buff.count = 0;
             pkByteBufferAddString(&buff, vm, tail_start,
                                   (uint32_t)(c - tail_start));
-            pkByteBufferWrite(&buff, vm, '\0');
+            pkBufferWrite(&buff, vm, '\0');
             writefn(vm, (char*)buff.data);
           }
         } else {
@@ -150,21 +150,21 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
 
         // White space before error token.
         buff.count = 0;
-        pkByteBufferFill(&buff, vm, ' ', line_number_width);
+        pkBufferFill(&buff, vm, ' ', line_number_width);
         pkByteBufferAddString(&buff, vm, " | ", 3);
 
         for (const char* c2 = line_start; c2 < at; c2++) {
           char white_space = (*c2 == '\t') ? '\t' : ' ';
-          pkByteBufferWrite(&buff, vm, white_space);
+          pkBufferWrite(&buff, vm, white_space);
         }
 
-        pkByteBufferWrite(&buff, vm, '\0');
+        pkBufferWrite(&buff, vm, '\0');
         writefn(vm, (char*)buff.data);
 
         // Error token underline.
         buff.count = 0;
-        pkByteBufferFill(&buff, vm, '~', (uint32_t)(length ? length : 1));
-        pkByteBufferWrite(&buff, vm, '\0');
+        pkBufferFill(&buff, vm, '~', (uint32_t)(length ? length : 1));
+        pkBufferWrite(&buff, vm, '\0');
         _printRed(vm, (char*)buff.data);
         writefn(vm, "\n");
 
@@ -174,7 +174,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
       curr_line++; c++;
     }
   }
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
 }
 
 static void _reportStackFrame(PKVM* vm, CallFrame* frame) {

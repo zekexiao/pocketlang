@@ -309,7 +309,7 @@ void pkClassAddMethod(PKVM* vm, PkHandle* cls,
   vm->vmPopTempRef(); // fn.
   vm->vmPushTempRef(&method->_super); // method.
   {
-    pkClosureBufferWrite(&class_->methods, vm, method);
+    pkBufferWrite(&class_->methods, vm, method);
     if (!strcmp(name, CTOR_NAME)) class_->ctor = method;
   }
   vm->vmPopTempRef(); // method.
@@ -490,7 +490,7 @@ PkResult pkRunREPL(PKVM* vm) {
 
   // A buffer to store multiple lines read from stdin.
   pkByteBuffer lines;
-  pkByteBufferInit(&lines);
+  pkBufferInit(&lines);
 
   // Will be set to true if the compilation failed with unexpected EOF to add
   // more lines to the [lines] buffer.
@@ -527,10 +527,10 @@ PkResult pkRunREPL(PKVM* vm) {
     }
 
     // Add the line to the lines buffer.
-    if (lines.count != 0) pkByteBufferWrite(&lines, vm, '\n');
+    if (lines.count != 0) pkBufferWrite(&lines, vm, '\n');
     pkByteBufferAddString(&lines, vm, line, (uint32_t) line_length);
     pkRealloc(vm, line, 0);
-    pkByteBufferWrite(&lines, vm, '\0');
+    pkBufferWrite(&lines, vm, '\0');
 
     // Compile the buffer to the module.
     result = compile(vm, _module, (const char*) lines.data, &options);
@@ -546,7 +546,7 @@ PkResult pkRunREPL(PKVM* vm) {
     // means it's either successfully compiled or compilation error. Clean the
     // buffer for the next iteration.
     need_more_lines = false;
-    pkByteBufferClear(&lines, vm);
+    pkBufferClear(&lines, vm);
 
     if (result != PK_RESULT_SUCCESS) continue;
 
@@ -1103,18 +1103,18 @@ void stdoutWrite(PKVM* vm, const char* text) {
 static char* stdinRead(PKVM* vm) {
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
   char c;
   do {
     c = (char) fgetc(stdin);
     if (c == '\n') break;
-    pkByteBufferWrite(&buff, vm, (uint8_t)c);
+    pkBufferWrite(&buff, vm, (uint8_t)c);
   } while (c != EOF);
-  pkByteBufferWrite(&buff, vm, '\0');
+  pkBufferWrite(&buff, vm, '\0');
 
   char* str = (char*)pkRealloc(vm, NULL, buff.count);
   memcpy(str, buff.data, buff.count);
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
   return str;
 }
 

@@ -29,7 +29,8 @@ class Compiler;
 // arguments (or other ways the host application provides). For now this
 // struct is not publicily visible to the host for the sake of simplicity
 // (like lua does) it needs to be a somehow addressed (TODO:).
-typedef struct {
+class CompileOptions {
+public:
 
   // Compile debug version of the source. In release mode all the assertions
   // and debug informations will be stripped (TODO:) and wll be optimized.
@@ -39,7 +40,7 @@ typedef struct {
   // each evaluated non-null values.
   bool repl_mode;
 
-} CompileOptions;
+};
 
 // Create a new CompilerOptions with the default values and return it.
 CompileOptions newCompilerOptions();

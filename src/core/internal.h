@@ -105,6 +105,10 @@
 #define DEALLOCATE_ARRAY(vm, pointer, type, count) \
   ((type*)vm->vmRealloc(pointer, sizeof(type) * (count), 0))
 
+// Reallocate through the VM allocator from code that only has forward-declared
+// PKVM visibility.
+void* vmRealloc(PKVM* vm, void* memory, size_t old_size, size_t new_size);
+
 /*****************************************************************************/
 /* REUSABLE INTERNAL MACROS                                                  */
 /*****************************************************************************/

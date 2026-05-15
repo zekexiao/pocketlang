@@ -31,7 +31,7 @@
 #if VAR_NAN_TAGGING
   typedef uint64_t Var;
 #else
-  typedef struct Var Var;
+  class Var;
 #endif
 
 /**
@@ -171,7 +171,8 @@ typedef enum {
   VAR_OBJECT,    //< Base type for all \ref var_Object types.
 } VarType;
 
-struct Var {
+class Var {
+public:
   VarType type;
   union {
     bool _bool;
@@ -184,26 +185,26 @@ struct Var {
 #endif // VAR_NAN_TAGGING
 
 // Type definition of pocketlang heap allocated types.
-typedef struct Object Object;
-typedef struct String String;
-typedef struct List List;
-typedef struct Map Map;
-typedef struct Range Range;
-typedef struct Module Module;
-typedef struct Function Function;
-typedef struct Closure Closure;
-typedef struct MethodBind MethodBind;
-typedef struct Upvalue Upvalue;
-typedef struct Fiber Fiber;
-typedef struct Class Class;
-typedef struct Instance Instance;
+class Object;
+class String;
+class List;
+class Map;
+class Range;
+class Module;
+class Function;
+class Closure;
+class MethodBind;
+class Upvalue;
+class Fiber;
+class Class;
+class Instance;
 
 // Declaration of buffer objects of different types.
-DECLARE_BUFFER(Uint, uint32_t)
-DECLARE_BUFFER(Byte, uint8_t)
-DECLARE_BUFFER(Var, Var)
-DECLARE_BUFFER(String, String*)
-DECLARE_BUFFER(Closure, Closure*)
+using pkUintBuffer = pkBuffer<uint32_t>;
+using pkByteBuffer = pkBuffer<uint8_t>;
+using pkVarBuffer = pkBuffer<Var>;
+using pkStringBuffer = pkBuffer<String*>;
+using pkClosureBuffer = pkBuffer<Closure*>;
 
 // Add all the characters to the buffer, byte buffer can also be used as a
 // buffer to write string (like a string stream). Note that this will not
@@ -231,14 +232,16 @@ typedef enum {
   OBJ_INST, // OBJ_INST should be the last element of this enums (don't move).
 } ObjectType;
 
-// Base struct for all heap allocated objects.
-struct Object {
+// Base class for all heap allocated objects.
+class Object {
+public:
   ObjectType type;  //< Type of the object in \ref var_Object_Type.
   bool is_marked;   //< Marked when garbage collection's marking phase.
   Object* next;     //< Next object in the heap allocated link list.
 };
 
-struct String {
+class String {
+public:
   Object _super;
 
   uint32_t hash;      //< 32 bit hash value of the string.
@@ -247,22 +250,25 @@ struct String {
   char data[DYNAMIC_TAIL_ARRAY];
 };
 
-struct List {
+class List {
+public:
   Object _super;
 
   pkVarBuffer elements; //< Elements of the array.
 };
 
-typedef struct {
+class MapEntry {
+public:
   // If the key is VAR_UNDEFINED it's an empty slot and if the value is false
   // the entry is new and available, if true it's a tombstone - the entry
   // previously used but then deleted.
 
   Var key;   //< The entry's key or VAR_UNDEFINED of the entry is not in use.
   Var value; //< The entry's value.
-} MapEntry;
+};
 
-struct Map {
+class Map {
+public:
   Object _super;
 
   uint32_t capacity; //< Allocated entry's count.
@@ -270,7 +276,8 @@ struct Map {
   MapEntry* entries; //< Pointer to the contiguous array.
 };
 
-struct Range {
+class Range {
+public:
   Object _super;
 
   double from; //< Beggining of the range inclusive.
@@ -280,7 +287,8 @@ struct Range {
 // Module in pocketlang is a collection of globals, functions, classes and top
 // level statements, they can be imported in other modules generally a
 // pocketlang script will compiled to a module.
-struct Module {
+class Module {
+public:
   Object _super;
 
   // The [name] is the module name defined with either 'module' statement
@@ -322,14 +330,16 @@ struct Module {
 #endif
 };
 
-// A struct contain opcodes and other information of a compiled function.
-typedef struct {
+// A class contains opcodes and other information of a compiled function.
+class Fn {
+public:
   pkByteBuffer opcodes;  //< Buffer of opcodes.
   pkUintBuffer oplines;  //< Line number of opcodes for debug (1 based).
   int stack_size;        //< Maximum size of stack required.
-} Fn;
+};
 
-struct Function {
+class Function {
+public:
   Object _super;
 
   // The module that owns this function. Since built in functions doesn't
@@ -399,7 +409,8 @@ struct Function {
 // ran out of it's scope / popped from stack, the upvalue will make it's own
 // copy of that variable to make sure that a closure referenceing the variable
 // via this upvalue has still access to the variable.
-struct Closure {
+class Closure {
+public:
   Object _super;
 
   Function* fn;
@@ -410,7 +421,8 @@ struct Closure {
 // instace which will be used as the self when the underlying method invoked.
 // If the vallue [instance] is VAR_UNDEFINED it's unbound and cannot be
 // called.
-struct MethodBind {
+class MethodBind {
+public:
   Object _super;
 
   Closure* method;
@@ -437,7 +449,8 @@ struct MethodBind {
 //       '-------'
 //         stack
 //
-struct Upvalue {
+class Upvalue {
+public:
   Object _super;
 
   // The pointer which points to the non-local variable, once the variable is
@@ -454,12 +467,13 @@ struct Upvalue {
   Upvalue* next;
 };
 
-typedef struct {
+class CallFrame {
+public:
   const uint8_t* ip;      //< Pointer to the next instruction byte code.
   const Closure* closure; //< Closure of the frame.
   Var* rbp;               //< Stack base pointer. (%rbp)
   Var self;               //< Self reference of the current method.
-} CallFrame;
+};
 
 typedef enum {
   FIBER_NEW,     //< Fiber haven't started yet.
@@ -468,7 +482,8 @@ typedef enum {
   FIBER_DONE,    //< Fiber finished and cannot be resumed.
 } FiberState;
 
-struct Fiber {
+class Fiber {
+public:
   Object _super;
 
   FiberState state;
@@ -517,7 +532,8 @@ struct Fiber {
   String* error;
 };
 
-struct Class {
+class Class {
+public:
   Object _super;
 
   // The base class of this class.
@@ -553,12 +569,14 @@ struct Class {
 
 };
 
-typedef struct {
+class Inst {
+public:
   Class* type;        //< Class this instance belongs to.
   pkVarBuffer fields; //< Var buffer of the instance.
-} Inst;
+};
 
-struct Instance {
+class Instance {
+public:
   Object _super;
 
   Class* cls; //< Class of the instance.
@@ -699,11 +717,11 @@ String* stringJoin(PKVM* vm, String* str1, String* str2);
 // define a function inside a header as long as it's static (but not a fan).
 #if 0 // Function implementation.
   static inline void listAppend(PKVM* vm, List* self, Var value) {
-    pkVarBufferWrite(&self->elements, vm, value);
+    pkBufferWrite(&self->elements, vm, value);
   }
 #else // Macro implementation.
   #define listAppend(vm, self, value) \
-    pkVarBufferWrite(&self->elements, vm, value)
+    pkBufferWrite(&self->elements, vm, value)
 #endif
 
 // Insert [value] to the list at [index] and shift down the rest of the

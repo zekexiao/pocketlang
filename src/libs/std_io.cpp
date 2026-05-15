@@ -311,7 +311,7 @@ DEF(_fileGetLine,
   // and use pkRealloc() with size using ftell() or something.
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
   char c;
   do {
     c = (char) fgetc(file->fp);
@@ -325,7 +325,7 @@ DEF(_fileGetLine,
       break; // EOF is reached.
     }
 
-    pkByteBufferWrite(&buff, vm, (uint8_t) c);
+    pkBufferWrite(&buff, vm, (uint8_t) c);
     if (c == '\n') break;
 
   } while (true);
@@ -334,7 +334,7 @@ DEF(_fileGetLine,
   pkSetSlotStringLength(vm, 0, (const char*)buff.data, buff.count);
 
 L_done:
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
   return;
 }
 
