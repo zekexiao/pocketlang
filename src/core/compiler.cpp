@@ -1482,9 +1482,7 @@ bool Compiler::matchAssignment() {
 // if not found returns -1.
 static int findBuiltinFunction(const PKVM* vm, std::string_view name) {
   for (int i = 0; i < vm->builtins_count; i++) {
-    const char* fn_name = vm->builtins_funcs[i]->fn->name;
-    if (name.size() == strlen(fn_name) &&
-        strncmp(name.data(), fn_name, name.size()) == 0) {
+    if (vm->builtins_funcs[i]->fn->name == name) {
       return i;
     }
   }
@@ -2320,7 +2318,7 @@ void Compiler::exprSuper() {
   ASSERT(this->func->ptr != NULL, OOPS);
 
   int index = 0;
-  const char* name = this->func->ptr->name;
+  const char* name = this->func->ptr->name.data();
   int name_length = -1;
 
   if (!match(TK_LPARAN)) { // super.method().
@@ -2675,7 +2673,7 @@ int Compiler::compileClass() {
     Token* str = &this->parser.previous;
     int index = addConstant(str->value);
     String* docstring = moduleGetStringAt(this->module, index);
-    cls->docstring = docstring->data;
+    cls->docstring = {docstring->data, docstring->length};
   }
 
   skipNewLines();
@@ -2899,7 +2897,7 @@ void Compiler::compileFunction(FuncType fn_type) {
     Token* str = &this->parser.previous;
     int index = addConstant(str->value);
     String* docstring = moduleGetStringAt(this->module, index);
-    func->docstring = docstring->data;
+    func->docstring = {docstring->data, docstring->length};
   }
 
   compileBlockBody(BLOCK_FUNC);

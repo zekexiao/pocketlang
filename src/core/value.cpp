@@ -397,21 +397,23 @@ Function* newFunction(PKVM* vm, std::string_view name,
   func->upvalue_count = 0;
   func->arity = -2; // -2 means un-initialized (TODO: make it as a macro).
   func->is_method = false;
-  func->docstring = docstring;
+  func->docstring = docstring ? std::string_view{docstring}
+                              : std::string_view{};
 
   ASSERT(is_native || owner != NULL, OOPS);
 
   // Only builtin function does't have an owner module.
   if (is_native && owner == NULL) {
-    // Store a pointer into a module names buffer entry or a C literal.
+    // Store a view into a C literal or a module names buffer entry.
     // Callers are responsible for keeping the pointed-to data alive.
-    func->name = name.data();
+    func->name = name;
     func->native = NULL;
 
   } else {
     uint32_t _fn_index = moduleAddConstant(vm, owner, VAR_OBJ(func));
     if (fn_index) *fn_index = _fn_index;
-    func->name = moduleAddString(owner, vm, name, NULL)->data;
+    String* fn_name_str = moduleAddString(owner, vm, name, NULL);
+    func->name = {fn_name_str->data, fn_name_str->length};
 
     if (is_native) {
       func->native = NULL;
@@ -546,7 +548,8 @@ Class* newClass(PKVM* vm, std::string_view name,
 
   cls->class_of = PK_INSTANCE;
   cls->super_class = super;
-  cls->docstring = docstring;
+  cls->docstring = docstring ? std::string_view{docstring}
+                             : std::string_view{};
 
   // Builtin types doesn't belongs to a module.
   if (module != NULL) {

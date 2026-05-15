@@ -301,30 +301,30 @@ DEF(coreHelp,
       Closure* closure = (Closure*) AS_OBJ(value);
       // If there ins't an io function callback, we're done.
 
-      if (closure->fn->docstring != NULL) {
-        vm->config.stdout_write(vm, closure->fn->docstring);
+      if (!closure->fn->docstring.empty()) {
+        vm->config.stdout_write(vm, closure->fn->docstring.data());
         vm->config.stdout_write(vm, "\n\n");
       } else {
         vm->config.stdout_write(vm, "function '");
-        vm->config.stdout_write(vm, closure->fn->name);
+        vm->config.stdout_write(vm, closure->fn->name.data());
         vm->config.stdout_write(vm, "()' doesn't have a docstring.\n");
       }
     } else if (IS_OBJ_TYPE(value, OBJ_METHOD_BIND)) {
       MethodBind* mb = (MethodBind*) AS_OBJ(value);
       // If there ins't an io function callback, we're done.
 
-      if (mb->method->fn->docstring != NULL) {
-        vm->config.stdout_write(vm, mb->method->fn->docstring);
+      if (!mb->method->fn->docstring.empty()) {
+        vm->config.stdout_write(vm, mb->method->fn->docstring.data());
         vm->config.stdout_write(vm, "\n\n");
       } else {
         vm->config.stdout_write(vm, "method '");
-        vm->config.stdout_write(vm, mb->method->fn->name);
+        vm->config.stdout_write(vm, mb->method->fn->name.data());
         vm->config.stdout_write(vm, "()' doesn't have a docstring.\n");
       }
     } else if (IS_OBJ_TYPE(value, OBJ_CLASS)) {
       Class* cls = (Class*) AS_OBJ(value);
-      if (cls->docstring != NULL) {
-        vm->config.stdout_write(vm, cls->docstring);
+      if (!cls->docstring.empty()) {
+        vm->config.stdout_write(vm, cls->docstring.data());
         vm->config.stdout_write(vm, "\n\n");
       } else {
         vm->config.stdout_write(vm, "class '");
@@ -811,7 +811,7 @@ DEF(stdLangBackTrace,
 
       // Note that path can be null.
       const char* path = (fn->owner->path) ? fn->owner->path->data : "<?>";
-      const char* fn_name = (fn->name) ? fn->name : "<?>";
+      const char* fn_name = fn->name.empty() ? "<?>" : fn->name.data();
 
       pkByteBufferAddStringFmt(&bb, vm, "%s;%s;%i\n", fn_name, path, line);
     }
@@ -1322,7 +1322,7 @@ DEF(_classMethods,
   vm->vmPushTempRef(static_cast<Object*>(list)); // list.
   for (int i = 0; i < (int) self->methods.count; i++) {
     Closure* method = self->methods.data[i];
-    ASSERT(method->fn->name, OOPS);
+    ASSERT(!method->fn->name.empty(), OOPS);
     if (method->fn->name[0] == SPECIAL_NAME_CHAR) continue;
     MethodBind* mb = newMethodBind(vm, method);
     vm->vmPushTempRef(static_cast<Object*>(mb)); // mb.
@@ -1548,8 +1548,8 @@ static inline Closure* clsGetMethod(Class* cls, String* name) {
     for (int i = 0; i < (int)cls_->methods.count; i++) {
       Closure* method_ = cls_->methods.data[i];
       ASSERT(method_->fn->is_method, OOPS);
-      const char* method_name = method_->fn->name;
-      if (IS_CSTR_EQ(name, method_name, strlen(method_name))) {
+      const std::string_view method_name = method_->fn->name;
+      if (IS_CSTR_EQ(name, method_name.data(), method_name.size())) {
         return method_;
       }
     }
@@ -2037,7 +2037,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
           return VAR_OBJ(newString(vm, closure->fn->name));
 
         case CHECK_HASH("_docs", 0x8fb536a9):
-          if (closure->fn->docstring) {
+          if (!closure->fn->docstring.empty()) {
             return VAR_OBJ(newString(vm, closure->fn->docstring));
           } else {
             return VAR_OBJ(newString(vm, ""));
@@ -2054,7 +2054,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
 
       switch (attrib->hash) {
         case CHECK_HASH("_docs", 0x8fb536a9):
-          if (mb->method->fn->docstring) {
+          if (!mb->method->fn->docstring.empty()) {
             return VAR_OBJ(newString(vm, mb->method->fn->docstring));
           } else {
             return VAR_OBJ(newString(vm, ""));
@@ -2091,7 +2091,7 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
 
       switch (attrib->hash) {
         case CHECK_HASH("_docs", 0x8fb536a9):
-          if (cls->docstring) {
+          if (!cls->docstring.empty()) {
             return VAR_OBJ(newString(vm, cls->docstring));
           } else {
             return VAR_OBJ(newString(vm, ""));
@@ -2114,8 +2114,8 @@ Var varGetAttrib(PKVM* vm, Var on, String* attrib) {
       for (int i = 0; i < (int)cls->methods.count; i++) {
         Closure* method_ = cls->methods.data[i];
         ASSERT(method_->fn->is_method, OOPS);
-        const char* method_name = method_->fn->name;
-        if (IS_CSTR_EQ(attrib, method_name, strlen(method_name))) {
+        const std::string_view method_name = method_->fn->name;
+        if (IS_CSTR_EQ(attrib, method_name.data(), method_name.size())) {
           return VAR_OBJ(newMethodBind(vm, method_));
         }
       }

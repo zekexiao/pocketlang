@@ -465,7 +465,7 @@ public:
   //
   // For embedding pocketlang the user must ensure the name exists till the
   // function is alive, and it's recomented to use literal C string for that.
-  const char* name;
+  std::string_view name;
 
   // Number of argument the function expects. If the arity is -1 that means
   // the function has a variadic number of parameters. When a function is
@@ -482,8 +482,9 @@ public:
   int upvalue_count;
 
   // Docstring of the function. Could be either a C string literal or a string
-  // entry in it's owner module's constant pool.
-  const char* docstring;
+  // entry in it's owner module's constant pool. Empty string_view means no
+  // docstring.
+  std::string_view docstring;
 
   // Function can be either native C function pointers or compiled pocket
   // functions.
@@ -674,8 +675,9 @@ public:
   String* name;
 
   // Docstring of the class. Could be either a C string literal or a string
-  // entry in it's owner module's constant pool.
-  const char* docstring;
+  // entry in it's owner module's constant pool. Empty string_view means no
+  // docstring.
+  std::string_view docstring;
 
   // For builtin type it'll be it's enum (ex: PK_STRING, PK_NUMBER, ...) for
   // every other classes it'll be PK_INSTANCE to indicate that it's not a

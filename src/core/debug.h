@@ -13,9 +13,9 @@
 #endif
 
 // Pretty print compile time error.
-void reportCompileTimeError(PKVM* vm, const char* path, int line,
-                            const char* source, const char* at, int length,
-                            const char* fmt, va_list args);
+void reportCompileTimeError(PKVM* vm, std::string_view path, int line,
+                            std::string_view source, const char* at,
+                            int length, const char* fmt, va_list args);
 
 // Pretty print runtime error.
 void reportRuntimeError(PKVM* vm, Fiber* fiber);

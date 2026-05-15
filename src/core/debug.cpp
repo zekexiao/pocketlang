@@ -26,9 +26,9 @@ static void _printRed(PKVM* vm, const char* msg) {
   }
 }
 
-void reportCompileTimeError(PKVM* vm, const char* path, int line,
-                            const char* source, const char* at, int length,
-                            const char* fmt, va_list args) {
+void reportCompileTimeError(PKVM* vm, std::string_view path, int line,
+                            std::string_view source, const char* at,
+                            int length, const char* fmt, va_list args) {
 
   pkWriteFn writefn = vm->config.stderr_write;
   if (writefn == NULL) return;
@@ -40,7 +40,7 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
     pkBufferReserve(&buff, vm, 512);
 
     buff.count = 0;
-    writefn(vm, path);
+    writefn(vm, path.data());
     writefn(vm, ":");
     const std::string line_str = std::format("{}", line);
     writefn(vm, line_str.c_str());
@@ -72,16 +72,16 @@ void reportCompileTimeError(PKVM* vm, const char* path, int line,
     const char* c = at;
 
     // Get the first character of the [start] line.
-    if (c != source) {
+    if (c != source.data()) {
       do {
         c--;
         if (*c == '\n') curr_line--;
-        if (c == source) break;
+        if (c == source.data()) break;
       } while (curr_line >= start);
     }
 
     curr_line = start;
-    if (c != source) {
+    if (c != source.data()) {
       ASSERT(*c == '\n', OOPS);
       c++; // Enter the line.
     }
@@ -199,12 +199,12 @@ static void _reportStackFrame(PKVM* vm, CallFrame* frame) {
     const std::string line_str = std::format("{:>2}", line);
     writefn(vm, line_str.c_str());
     writefn(vm, "] ");
-    writefn(vm, fn->name);
+    writefn(vm, fn->name.data());
     writefn(vm, "()\n");
 
   } else {
     writefn(vm, "  ");
-    writefn(vm, fn->name);
+    writefn(vm, fn->name.data());
     writefn(vm, "() [");
     writefn(vm, fn->owner->path->data);
     writefn(vm, ":");
@@ -318,7 +318,7 @@ void dumpFunctionCode(PKVM* vm, Function* func) {
 
   // This will print: Instruction Dump of function 'fn' "path.pk"\n
   PRINT("Instruction Dump of function ");
-  PRINT(func->name);
+  PRINT(func->name.data());
   PRINT(" ");
   PRINT(path);
   NEWLINE();
@@ -474,11 +474,11 @@ void dumpFunctionCode(PKVM* vm, Function* func) {
       {
         int index = READ_BYTE();
         ASSERT_INDEX(index, vm->builtins_count);
-        const char* name = vm->builtins_funcs[index]->fn->name;
+        std::string_view name = vm->builtins_funcs[index]->fn->name;
         // Prints: %5d [Fn:%s]\n
         PRINT_INT(index);
         PRINT(" [Fn:");
-        PRINT(name);
+        PRINT(name.data());
         PRINT("]\n");
         break;
       }

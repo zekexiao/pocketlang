@@ -196,7 +196,7 @@ bool PKVM::vmPrepareFiber(Fiber* fiber, int argc, Var* argv) {
     const std::string buff = std::format("{}", fiber->closure->fn->arity);
     _ERR_FAIL(stringFormat(vm, "Expected exactly $ argument(s) for "
                            "function $.", buff.c_str(),
-                           fiber->closure->fn->name));
+                           fiber->closure->fn->name.data()));
   }
 
   if (fiber->state != FIBER_NEW) {
@@ -1149,7 +1149,7 @@ L_vm_main_loop:
       Closure* method = (Closure*)AS_OBJ(PEEK(-1));
       Class* cls = (Class*)AS_OBJ(PEEK(-2));
 
-      if (strcmp(method->fn->name, CTOR_NAME) == 0) {
+      if (method->fn->name == CTOR_NAME) {
         cls->ctor = method;
       }
 
@@ -1310,7 +1310,7 @@ L_do_call:
         const std::string buff = std::format("{}", closure->fn->arity);
         String* msg = stringFormat(vm, "Expected exactly $ argument(s) "
                                    "for function $", buff.c_str(),
-                                   closure->fn->name);
+                                   closure->fn->name.data());
         RUNTIME_ERROR(msg);
       }
 
@@ -1318,7 +1318,8 @@ L_do_call:
 
         if (closure->fn->native == NULL) {
           RUNTIME_ERROR(stringFormat(vm,
-            "Native function pointer of $ was NULL.", closure->fn->name));
+            "Native function pointer of $ was NULL.",
+            closure->fn->name.data()));
         }
 
         // Update the current frame's ip.

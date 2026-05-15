@@ -199,7 +199,7 @@ void pkRegisterBuiltinFn(PKVM* vm, const char* name, pkNativeFn fn,
   // O(1) However it'll decrease the compile time.
   for (int i = 0; i < vm->builtins_count; i++) {
     Closure* bfn = vm->builtins_funcs[i];
-    ASSERT(strcmp(bfn->fn->name, name) != 0,
+    ASSERT(bfn->fn->name != name,
            "Overriding existing function not supported yet.");
   }
 
