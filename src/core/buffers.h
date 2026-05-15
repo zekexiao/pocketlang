@@ -11,8 +11,8 @@
 #include "internal.h"
 #endif
 
-// The macro 'DECLARE_BUFFER()' emulate the C++ template to declare and define
-// different types of buffer objects.
+// The macro 'DECLARE_BUFFER()' declares a class-style buffer type and its
+// procedural helpers for different element types.
 
 // A buffer of type 'T' will contain a heap allocated array of 'T' with the
 // capacity of 'Tbuffer.capacity' as 'T* Tbuffer.data'. When the capacity is
@@ -21,12 +21,13 @@
 // it's last capacity.
 
 #define DECLARE_BUFFER(m_name, m_type)                                        \
-  typedef struct {                                                            \
+  class pk##m_name##Buffer {                                                  \
+  public:                                                                     \
     m_type* data;                                                             \
     uint32_t count;                                                           \
     uint32_t capacity;                                                        \
-  } pk##m_name##Buffer;                                                       \
-                                                                              \
+  };                                                                          \
+                                                                               \
   /* Initialize a new buffer int instance. */                                 \
   void pk##m_name##BufferInit(pk##m_name##Buffer* self);                      \
                                                                               \

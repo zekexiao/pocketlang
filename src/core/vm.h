@@ -49,7 +49,8 @@
 
 // A doubly link list of vars that have reference in the host application.
 // Handles are wrapper around Var that lives on the host application.
-struct PkHandle {
+class PkHandle {
+public:
   Var value;
 
   PkHandle* prev;
