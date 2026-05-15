@@ -793,7 +793,7 @@ void Compiler::eatString(bool single_quote) {
   Parser* parser = &this->parser;
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
 
   char quote = (single_quote) ? '\'' : '"';
 
@@ -855,16 +855,16 @@ void Compiler::eatString(bool single_quote) {
 
     if (c == '\\') {
       switch (parser->eatChar()) {
-        case '"':  pkByteBufferWrite(&buff, parser->vm, '"'); break;
-        case '\'': pkByteBufferWrite(&buff, parser->vm, '\''); break;
-        case '\\': pkByteBufferWrite(&buff, parser->vm, '\\'); break;
-        case 'n':  pkByteBufferWrite(&buff, parser->vm, '\n'); break;
-        case 'r':  pkByteBufferWrite(&buff, parser->vm, '\r'); break;
-        case 't':  pkByteBufferWrite(&buff, parser->vm, '\t'); break;
+        case '"':  pkBufferWrite(&buff, parser->vm, '"'); break;
+        case '\'': pkBufferWrite(&buff, parser->vm, '\''); break;
+        case '\\': pkBufferWrite(&buff, parser->vm, '\\'); break;
+        case 'n':  pkBufferWrite(&buff, parser->vm, '\n'); break;
+        case 'r':  pkBufferWrite(&buff, parser->vm, '\r'); break;
+        case 't':  pkBufferWrite(&buff, parser->vm, '\t'); break;
         case '\n': break; // Just ignore the next line.
 
         // '$' In pocketlang string is used for interpolation.
-        case '$':  pkByteBufferWrite(&buff, parser->vm, '$'); break;
+        case '$':  pkBufferWrite(&buff, parser->vm, '$'); break;
 
         // Hex literal in string should match `\x[0-9a-zA-Z][0-9a-zA-Z]`
         case 'x': {
@@ -888,7 +888,7 @@ void Compiler::eatString(bool single_quote) {
 
           val = (val << 4) | utilCharHexVal(c);
 
-          pkByteBufferWrite(&buff, parser->vm, val);
+          pkBufferWrite(&buff, parser->vm, val);
 
         } break;
 
@@ -903,7 +903,7 @@ void Compiler::eatString(bool single_quote) {
           break;
       }
     } else {
-      pkByteBufferWrite(&buff, parser->vm, c);
+      pkBufferWrite(&buff, parser->vm, c);
     }
   }
 
@@ -911,7 +911,7 @@ void Compiler::eatString(bool single_quote) {
   Var string = VAR_OBJ(newStringLength(parser->vm, (const char*)buff.data,
                        (uint32_t)buff.count));
 
-  pkByteBufferClear(&buff, parser->vm);
+  pkBufferClear(&buff, parser->vm);
 
   parser->setNextValueToken(tk_type, string);
 }
@@ -2537,9 +2537,9 @@ void Compiler::popFunc() {
 // Emit a single byte and return it's index.
 int Compiler::emitByte(int byte) {
 
-  pkByteBufferWrite(&_FN->opcodes, this->parser.vm,
+  pkBufferWrite(&_FN->opcodes, this->parser.vm,
                     (uint8_t)byte);
-  pkUintBufferWrite(&_FN->oplines, this->parser.vm,
+  pkBufferWrite(&_FN->oplines, this->parser.vm,
                    this->parser.previous.line);
   return (int)_FN->opcodes.count - 1;
 }
@@ -2984,7 +2984,7 @@ Token Compiler::compileImportPath() {
 
   PKVM* vm = this->parser.vm;
   pkByteBuffer buff; // A buffer to write the path string.
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
 
   if (match(TK_DOT)) {
     pkByteBufferAddString(&buff, vm, "./", 2);
@@ -3004,16 +3004,16 @@ Token Compiler::compileImportPath() {
     if (this->parser.has_syntax_error) break;
 
     // A '.' consumed, write '/'.
-    if (tkmodule.type != TK_ERROR) pkByteBufferWrite(&buff, vm, (uint8_t) '/');
+    if (tkmodule.type != TK_ERROR) pkBufferWrite(&buff, vm, (uint8_t) '/');
 
     tkmodule = this->parser.previous;
     pkByteBufferAddString(&buff, vm, tkmodule.start, tkmodule.length);
 
   } while (match(TK_DOT));
-  pkByteBufferWrite(&buff, vm, '\0');
+  pkBufferWrite(&buff, vm, '\0');
 
   if (this->parser.has_syntax_error) {
-    pkByteBufferClear(&buff, vm);
+    pkBufferClear(&buff, vm);
     return this->parser.makeErrToken();
   }
 
@@ -3022,7 +3022,7 @@ Token Compiler::compileImportPath() {
   moduleAddString(this->module, this->parser.vm,
                   (const char*) buff.data, buff.count - 1, &index);
 
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
 
   emitOpcode(OP_IMPORT);
   emitShort(index);
@@ -3441,7 +3441,7 @@ PkResult compile(PKVM* vm, Module* module, const char* source,
   // If we're compiling for a module that was already compiled (when running
   // REPL or evaluating an expression) we don't need the old main anymore.
   // just use the globals and functions of the module and use a new body func.
-  pkByteBufferClear(&module->body->fn->fn->opcodes, vm);
+  pkBufferClear(&module->body->fn->fn->opcodes, vm);
 
   // Remember the count of constants, names, and globals, If the compilation
   // failed discard all of them and roll back.

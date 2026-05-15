@@ -26,16 +26,9 @@
 #define _MAX(a,b) ((a) > (b) ? (a) : (b))
 #define _MIN(a,b) ((a) < (b) ? (a) : (b))
 
-// Buffer implementations.
-DEFINE_BUFFER(Uint, uint32_t)
-DEFINE_BUFFER(Byte, uint8_t)
-DEFINE_BUFFER(Var, Var)
-DEFINE_BUFFER(String, String*)
-DEFINE_BUFFER(Closure, Closure*)
-
 void pkByteBufferAddString(pkByteBuffer* self, PKVM* vm, const char* str,
                            uint32_t length) {
-  pkByteBufferReserve(self, vm, (size_t) self->count + length);
+  pkBufferReserve(self, vm, (size_t) self->count + length);
   for (uint32_t i = 0; i < length; i++) {
     self->data[self->count++] = *(str++);
   }
@@ -51,7 +44,7 @@ void pkByteBufferAddStringFmt(pkByteBuffer* self, PKVM* vm,
   int length = vsnprintf(NULL, 0, fmt, copy);
   va_end(copy);
 
-  pkByteBufferReserve(self, vm, self->count + (size_t) length + 1);
+  pkBufferReserve(self, vm, self->count + (size_t) length + 1);
   vsnprintf((char*)self->data + self->count,
             self->capacity - self->count, fmt, args);
   self->count += length;
@@ -325,9 +318,9 @@ List* newList(PKVM* vm, uint32_t size) {
   List* list = ALLOCATE(vm, List);
   vm->vmPushTempRef(&list->_super); // list.
   varInitObject(&list->_super, vm, OBJ_LIST);
-  pkVarBufferInit(&list->elements);
+  pkBufferInit(&list->elements);
   if (size > 0) {
-    pkVarBufferFill(&list->elements, vm, VAR_NULL, size);
+    pkBufferFill(&list->elements, vm, VAR_NULL, size);
     list->elements.count = 0;
   }
   vm->vmPopTempRef(); // list.
@@ -356,9 +349,9 @@ Module* newModule(PKVM* vm) {
   memset(module, 0, sizeof(Module));
   varInitObject(&module->_super, vm, OBJ_MODULE);
 
-  pkVarBufferInit(&module->globals);
-  pkUintBufferInit(&module->global_names);
-  pkVarBufferInit(&module->constants);
+  pkBufferInit(&module->globals);
+  pkBufferInit(&module->global_names);
+  pkBufferInit(&module->constants);
 
   return module;
 }
@@ -398,8 +391,8 @@ Function* newFunction(PKVM* vm, const char* name, int length,
 
     } else {
       Fn* fn = ALLOCATE(vm, Fn);
-      pkByteBufferInit(&fn->opcodes);
-      pkUintBufferInit(&fn->oplines);
+      pkBufferInit(&fn->opcodes);
+      pkBufferInit(&fn->oplines);
       fn->stack_size = 0;
       func->fn = fn;
     }
@@ -521,7 +514,7 @@ Class* newClass(PKVM* vm, const char* name, int length,
 
   vm->vmPushTempRef(&cls->_super); // class.
 
-  pkClosureBufferInit(&cls->methods);
+  pkBufferInit(&cls->methods);
   cls->static_attribs = newMap(vm);
 
   cls->class_of = PK_INSTANCE;
@@ -572,7 +565,7 @@ List* rangeAsList(PKVM* vm, Range* self) {
     List* list = newList(vm, (uint32_t)(self->to - self->from));
     vm->vmPushTempRef(&list->_super); // list.
     for (double i = self->from; i < self->to; i++) {
-      pkVarBufferWrite(&list->elements, vm, VAR_NUM(i));
+      pkBufferWrite(&list->elements, vm, VAR_NUM(i));
     }
     vm->vmPopTempRef(); // list.
 
@@ -867,7 +860,7 @@ void listInsert(PKVM* vm, List* self, uint32_t index, Var value) {
 
   // Add an empty slot at the end of the buffer.
   if (IS_OBJ(value)) vm->vmPushTempRef(AS_OBJ(value));
-  pkVarBufferWrite(&self->elements, vm, VAR_NULL);
+  pkBufferWrite(&self->elements, vm, VAR_NULL);
   if (IS_OBJ(value)) vm->vmPopTempRef();
 
   // Shift the existing elements down.
@@ -905,7 +898,7 @@ Var listRemoveAt(PKVM* vm, List* self, uint32_t index) {
 }
 
 void listClear(PKVM* vm, List* self) {
-  pkVarBufferClear(&self->elements, vm);
+  pkBufferClear(&self->elements, vm);
 }
 
 List* listAdd(PKVM* vm, List* l1, List* l2) {
@@ -918,8 +911,8 @@ List* listAdd(PKVM* vm, List* l1, List* l2) {
   List* list = newList(vm, size);
 
   vm->vmPushTempRef(&list->_super); // list.
-  pkVarBufferConcat(&list->elements, vm, &l1->elements);
-  pkVarBufferConcat(&list->elements, vm, &l2->elements);
+  pkBufferConcat(&list->elements, vm, &l1->elements);
+  pkBufferConcat(&list->elements, vm, &l2->elements);
   vm->vmPopTempRef(); // list.
 
   return list;
@@ -1148,7 +1141,7 @@ void freeObject(PKVM* vm, Object* self) {
     };
 
     case OBJ_LIST: {
-      pkVarBufferClear(&(((List*)self)->elements), vm);
+      pkBufferClear(&(((List*)self)->elements), vm);
       DEALLOCATE(vm, self, List);
       return;
     }
@@ -1167,9 +1160,9 @@ void freeObject(PKVM* vm, Object* self) {
 
     case OBJ_MODULE: {
       Module* module = (Module*)self;
-      pkVarBufferClear(&module->globals, vm);
-      pkUintBufferClear(&module->global_names, vm);
-      pkVarBufferClear(&module->constants, vm);
+      pkBufferClear(&module->globals, vm);
+      pkBufferClear(&module->global_names, vm);
+      pkBufferClear(&module->constants, vm);
       #ifndef PK_NO_DL
       if (module->handle) vm->vmUnloadDlHandle(module->handle);
       #endif
@@ -1180,8 +1173,8 @@ void freeObject(PKVM* vm, Object* self) {
     case OBJ_FUNC: {
       Function* func = (Function*)self;
       if (!func->is_native) {
-        pkByteBufferClear(&func->fn->opcodes, vm);
-        pkUintBufferClear(&func->fn->oplines, vm);
+        pkBufferClear(&func->fn->opcodes, vm);
+        pkBufferClear(&func->fn->oplines, vm);
         DEALLOCATE(vm, func->fn, Fn);
       }
       DEALLOCATE(vm, self, Function);
@@ -1214,7 +1207,7 @@ void freeObject(PKVM* vm, Object* self) {
 
     case OBJ_CLASS: {
       Class* cls = (Class*)self;
-      pkClosureBufferClear(&cls->methods, vm);
+      pkBufferClear(&cls->methods, vm);
       DEALLOCATE(vm, cls, Class);
       return;
     }
@@ -1238,7 +1231,7 @@ uint32_t moduleAddConstant(PKVM* vm, Module* module, Var value) {
       return i;
     }
   }
-  pkVarBufferWrite(&module->constants, vm, value);
+  pkBufferWrite(&module->constants, vm, value);
   return (int)module->constants.count - 1;
 }
 
@@ -1259,7 +1252,7 @@ String* moduleAddString(Module* module, PKVM* vm, const char* name,
   // return the index.
   String* new_name = newStringLength(vm, name, length);
   vm->vmPushTempRef(&new_name->_super); // new_name
-  pkVarBufferWrite(&module->constants, vm, VAR_OBJ(new_name));
+  pkBufferWrite(&module->constants, vm, VAR_OBJ(new_name));
   vm->vmPopTempRef(); // new_name
   if (index) *index = module->constants.count - 1;
   return new_name;
@@ -1291,8 +1284,8 @@ uint32_t moduleSetGlobal(PKVM* vm, Module* module,
   // that name, create new one and set the value.
   int name_index = 0;
   moduleAddString(module, vm, name, length, &name_index);
-  pkUintBufferWrite(&module->global_names, vm, name_index);
-  pkVarBufferWrite(&module->globals, vm, value);
+  pkBufferWrite(&module->global_names, vm, name_index);
+  pkBufferWrite(&module->globals, vm, value);
   return module->globals.count - 1;
 }
 
@@ -1570,7 +1563,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
           return;
         } else {
           // If recursive return with quotes (ex: [42, "hello", 0..10]).
-          pkByteBufferWrite(buff, vm, '"');
+          pkBufferWrite(buff, vm, '"');
           for (uint32_t i = 0; i < str->length; i++) {
             char c = str->data[i];
             switch (c) {
@@ -1584,19 +1577,19 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
                 // if c isn't in range 0x00 to 0xff, isprintc()
                 // fail an assertion.
                 if ((0x00 <= c && c <= 0xff) && isprint(c)) {
-                  pkByteBufferWrite(buff, vm, c);
+                  pkBufferWrite(buff, vm, c);
                 } else {
                   pkByteBufferAddString(buff, vm, "\\x", 2);
                   uint8_t byte = (uint8_t) c;
-                  pkByteBufferWrite(buff, vm, utilHexDigit(((byte >> 4) & 0xf),
+                  pkBufferWrite(buff, vm, utilHexDigit(((byte >> 4) & 0xf),
                                     false));
-                  pkByteBufferWrite(buff, vm, utilHexDigit(((byte >> 0) & 0xf),
+                  pkBufferWrite(buff, vm, utilHexDigit(((byte >> 0) & 0xf),
                                     false));
                 }
               } break;
             }
           }
-          pkByteBufferWrite(buff, vm, '"');
+          pkBufferWrite(buff, vm, '"');
           return;
         }
         UNREACHABLE();
@@ -1622,12 +1615,12 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         OuterSequence seq_list;
         seq_list.outer = outer; seq_list.is_list = true; seq_list.list = list;
 
-        pkByteBufferWrite(buff, vm, '[');
+        pkBufferWrite(buff, vm, '[');
         for (uint32_t i = 0; i < list->elements.count; i++) {
           if (i != 0) pkByteBufferAddString(buff, vm, ", ", 2);
           _toStringInternal(vm, list->elements.data[i], buff, &seq_list, true);
         }
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1651,7 +1644,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         OuterSequence seq_map;
         seq_map.outer = outer; seq_map.is_list = false; seq_map.map = map;
 
-        pkByteBufferWrite(buff, vm, '{');
+        pkBufferWrite(buff, vm, '{');
         uint32_t i = 0;     // Index of the current entry to iterate.
         bool _first = true; // For first element no ',' required.
         do {
@@ -1669,13 +1662,13 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
           if (!_first) pkByteBufferAddString(buff, vm, ", ", 2);
 
           _toStringInternal(vm, map->entries[i].key, buff, &seq_map, true);
-          pkByteBufferWrite(buff, vm, ':');
+          pkBufferWrite(buff, vm, ':');
           _toStringInternal(vm, map->entries[i].value, buff, &seq_map, true);
 
           i++; _first = false;
         } while (i < map->capacity);
 
-        pkByteBufferWrite(buff, vm, '}');
+        pkBufferWrite(buff, vm, '}');
         return;
       }
 
@@ -1694,7 +1687,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, buff_from, len_from);
         pkByteBufferAddString(buff, vm, "..", 2);
         pkByteBufferAddString(buff, vm, buff_to, len_to);
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1705,12 +1698,12 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
           pkByteBufferAddString(buff, vm, module->name->data,
                               module->name->length);
         } else {
-          pkByteBufferWrite(buff, vm, '"');
+          pkBufferWrite(buff, vm, '"');
           pkByteBufferAddString(buff, vm, module->path->data,
                                 module->path->length);
-          pkByteBufferWrite(buff, vm, '"');
+          pkBufferWrite(buff, vm, '"');
         }
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1718,7 +1711,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         const Function* fn = (const Function*) obj;
         pkByteBufferAddString(buff, vm, "[Func:", 6);
         pkByteBufferAddString(buff, vm, fn->name, (uint32_t)strlen(fn->name));
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1727,7 +1720,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, "[Closure:", 9);
         pkByteBufferAddString(buff, vm, closure->fn->name,
                                         (uint32_t)strlen(closure->fn->name));
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
       case OBJ_METHOD_BIND: {
@@ -1735,7 +1728,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, "[MethodBind:", 12);
         pkByteBufferAddString(buff, vm, mb->method->fn->name,
                               (uint32_t)strlen(mb->method->fn->name));
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1744,7 +1737,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         pkByteBufferAddString(buff, vm, "[Fiber:", 7);
         pkByteBufferAddString(buff, vm, fb->closure->fn->name,
                             (uint32_t)strlen(fb->closure->fn->name));
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
@@ -1757,15 +1750,15 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         const Class* cls = (const Class*)obj;
         pkByteBufferAddString(buff, vm, "[Class:", 7);
         pkByteBufferAddString(buff, vm, cls->name->data, cls->name->length);
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
 
       case OBJ_INST:
       {
         const Instance* inst = (const Instance*)obj;
-        pkByteBufferWrite(buff, vm, '[');
-        pkByteBufferWrite(buff, vm, '\'');
+        pkBufferWrite(buff, vm, '[');
+        pkBufferWrite(buff, vm, '\'');
         pkByteBufferAddString(buff, vm, inst->cls->name->data,
           inst->cls->name->length);
         pkByteBufferAddString(buff, vm, "' instance at ", 14);
@@ -1776,7 +1769,7 @@ static void _toStringInternal(PKVM* vm, const Var v, pkByteBuffer* buff,
         const int len = snprintf(ptr, sizeof(buff_addr) - 2,
           "%08x", (unsigned int)(uintptr_t)inst);
         pkByteBufferAddString(buff, vm, buff_addr, (uint32_t)len);
-        pkByteBufferWrite(buff, vm, ']');
+        pkBufferWrite(buff, vm, ']');
         return;
       }
     }
@@ -1794,19 +1787,19 @@ String* toString(PKVM* vm, const Var value) {
   }
 
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
   _toStringInternal(vm, value, &buff, NULL, false);
   String* ret = newStringLength(vm, (const char*)buff.data, buff.count);
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
   return ret;
 }
 
 String* toRepr(PKVM* vm, const Var value) {
   pkByteBuffer buff;
-  pkByteBufferInit(&buff);
+  pkBufferInit(&buff);
   _toStringInternal(vm, value, &buff, NULL, true);
   String* ret = newStringLength(vm, (const char*)buff.data, buff.count);
-  pkByteBufferClear(&buff, vm);
+  pkBufferClear(&buff, vm);
   return ret;
 }
 

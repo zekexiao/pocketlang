@@ -200,11 +200,11 @@ class Class;
 class Instance;
 
 // Declaration of buffer objects of different types.
-DECLARE_BUFFER(Uint, uint32_t)
-DECLARE_BUFFER(Byte, uint8_t)
-DECLARE_BUFFER(Var, Var)
-DECLARE_BUFFER(String, String*)
-DECLARE_BUFFER(Closure, Closure*)
+using pkUintBuffer = pkBuffer<uint32_t>;
+using pkByteBuffer = pkBuffer<uint8_t>;
+using pkVarBuffer = pkBuffer<Var>;
+using pkStringBuffer = pkBuffer<String*>;
+using pkClosureBuffer = pkBuffer<Closure*>;
 
 // Add all the characters to the buffer, byte buffer can also be used as a
 // buffer to write string (like a string stream). Note that this will not
@@ -717,11 +717,11 @@ String* stringJoin(PKVM* vm, String* str1, String* str2);
 // define a function inside a header as long as it's static (but not a fan).
 #if 0 // Function implementation.
   static inline void listAppend(PKVM* vm, List* self, Var value) {
-    pkVarBufferWrite(&self->elements, vm, value);
+    pkBufferWrite(&self->elements, vm, value);
   }
 #else // Macro implementation.
   #define listAppend(vm, self, value) \
-    pkVarBufferWrite(&self->elements, vm, value)
+    pkBufferWrite(&self->elements, vm, value)
 #endif
 
 // Insert [value] to the list at [index] and shift down the rest of the

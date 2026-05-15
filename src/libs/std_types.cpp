@@ -49,7 +49,7 @@ DEF(_typesHash,
 static void* _bytebuffNew(PKVM* vm) {
   pkByteBuffer* self =
     (pkByteBuffer*)pkRealloc(vm, NULL, sizeof(pkByteBuffer));
-  pkByteBufferInit(self);
+  pkBufferInit(self);
   return self;
 }
 
@@ -66,7 +66,7 @@ DEF(_bytebuffReserve,
   if (!pkValidateSlotNumber(vm, 1, &size)) return;
 
   pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
-  pkByteBufferReserve(self, vm, (size_t) size);
+  pkBufferReserve(self, vm, (size_t) size);
 }
 
 // buff.fill(data, count)
@@ -86,7 +86,7 @@ DEF(_bytebuffFill,
   if (!pkValidateSlotNumber(vm, 1, &count)) return;
 
   pkByteBuffer* self = (pkByteBuffer*)pkGetSelf(vm);
-  pkByteBufferFill(self, vm, (uint8_t) n, (int) count);
+  pkBufferFill(self, vm, (uint8_t) n, (int) count);
 }
 
 DEF(_bytebuffClear,
@@ -109,7 +109,7 @@ DEF(_bytebuffWrite,
 
   switch (type) {
     case PK_BOOL:
-      pkByteBufferWrite(self, vm, pkGetSlotBool(vm, 1) ? 1 : 0);
+      pkBufferWrite(self, vm, pkGetSlotBool(vm, 1) ? 1 : 0);
       pkSetSlotNumber(vm, 0, 1);
       return;
 
@@ -122,7 +122,7 @@ DEF(_bytebuffWrite,
         return;
       }
 
-      pkByteBufferWrite(self, vm, (uint8_t) i);
+      pkBufferWrite(self, vm, (uint8_t) i);
       pkSetSlotNumber(vm, 0, 1);
       return;
     }
