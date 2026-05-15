@@ -27,7 +27,7 @@
     uint32_t count;                                                           \
     uint32_t capacity;                                                        \
   };                                                                          \
-                                                                               \
+\
   /* Initialize a new buffer int instance. */                                 \
   void pk##m_name##BufferInit(pk##m_name##Buffer* self);                      \
                                                                               \
