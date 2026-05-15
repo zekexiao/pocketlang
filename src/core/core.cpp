@@ -1767,14 +1767,15 @@ Var varMultiply(PKVM* vm, Var v1, Var v2, bool inplace) {
       // string so we're following the same rule here.
       if (right < 0) return VAR_OBJ(newString(vm, ""));
 
-      String* str = _allocateString(vm, left->length * (uint32_t) right);
-      char* buff = str->data;
+      pkByteBuffer buff;
+      pkByteBufferInit(&buff);
+      pkBufferReserve(&buff, vm, left->length * (uint32_t) right);
       for (int i = 0; i < (int) right; i++) {
-        memcpy(buff, left->data, left->length);
-        buff += left->length;
+        memcpy(buff.data + buff.count, left->data, left->length);
+        buff.count += left->length;
       }
-      ASSERT(buff == str->data + str->length, OOPS);
-      str->hash = utilHashString({str->data, str->length});
+      String* str = newStringLength(vm, {(const char*) buff.data, buff.count});
+      pkBufferClear(&buff, vm);
       return VAR_OBJ(str);
     }
   }
